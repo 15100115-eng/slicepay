@@ -1,0 +1,111 @@
+/* =====================================================================
+   Landing  #/   (m00–m02, d00–d02) — DESIGN_SYSTEM.md §4.1
+   ===================================================================== */
+.landing{min-height:100vh;min-height:100dvh;background:var(--grad-landing-m);color:var(--c-white)}
+.landing :focus-visible{outline-color:var(--c-focus-on-dark)}
+.landing__inner{display:flex;flex-direction:column;max-width:var(--m-max);margin-inline:auto;min-height:100vh;min-height:100dvh;padding:60px 22px 68px}
+.landing__logo{height:76px;flex:none}
+.landing__stage{position:relative;height:172px;margin-top:120px;flex:none}
+.landing__title{position:absolute;left:0;right:0;top:1px;margin:0;text-align:center;color:var(--c-white);transition:opacity var(--t-ticker-in) var(--ease)}
+.landing[data-state="loading"] .landing__title{opacity:0}
+.landing__spacer{flex:1 1 0;min-height:24px}
+
+/* loading ticker (§3.21) */
+.ticker{position:absolute;top:99px;left:50%;width:min(395px,calc(100% + 44px));height:73px;transform:translateX(-50%);overflow:hidden;pointer-events:none}
+.ticker__stack{position:absolute;left:0;right:0;top:-4.59px;opacity:0;text-align:center;color:var(--c-white)}
+.ticker__msg{height:70px;margin:0}
+.ticker__msg + .ticker__msg{margin-top:22px}
+.ticker__stack[data-step="off"]{visibility:hidden}
+.ticker__stack[data-step="enter"]{opacity:0;transform:translateY(3px)}
+.ticker__stack[data-step="show1"]{opacity:1;transform:translateY(0);transition:opacity var(--t-ticker-in) var(--ease),transform var(--t-ticker-in) var(--ease)}
+.ticker__stack[data-step="swap"]{opacity:1;transform:translateY(-92px);transition:transform var(--t-ticker-swap) ease-in-out}
+.ticker__stack[data-step="exit"]{opacity:0;transform:translateY(-100px);transition:opacity var(--t-ticker-out) var(--ease),transform var(--t-ticker-out) var(--ease)}
+/* reduced motion: fade out, switch while invisible, fade in */
+.landing.is-reduced .ticker__stack[data-step="swap"]{animation:tick-fade var(--t-ticker-swap) ease-in-out both;transition:none}
+@keyframes tick-fade{0%{opacity:1;transform:translateY(0)}45%{opacity:0;transform:translateY(0)}55%{opacity:0;transform:translateY(-92px)}100%{opacity:1;transform:translateY(-92px)}}
+
+/* form */
+.landing__form{display:flex;flex-direction:column;align-items:stretch;flex:none}
+.url-wrap{position:relative;height:60px}
+.url-input{display:block;width:100%;height:60px;margin:0;border:1px solid var(--c-primary);border-radius:var(--r-8);background:var(--c-white);color:var(--c-text-value);
+  font-size:20px;line-height:58px;padding:0 6px 0 19px;caret-color:var(--c-primary);-webkit-appearance:none;appearance:none;transition:box-shadow var(--t-fast) var(--ease)}
+.url-input:placeholder-shown{padding-left:65px}
+.url-input::placeholder{color:var(--c-placeholder-landing);opacity:1}
+.url-input:focus{outline:none}
+.url-input:focus-visible{box-shadow:0 0 0 3px var(--ring-on-dark)}
+.url-input[aria-invalid="true"]{border-color:var(--c-danger-border-on-dark);box-shadow:inset 0 0 0 1px var(--c-danger-border-on-dark)}
+.url-input[aria-invalid="true"]:focus-visible{box-shadow:inset 0 0 0 1px var(--c-danger-border-on-dark),0 0 0 3px var(--ring-on-dark)}
+/* loading: the field is read-only and the CTA carries aria-busy, so drop the focus halo (matches m02/d02) */
+.landing[data-state="loading"] .url-input:focus-visible{box-shadow:none}
+.store-slot{position:absolute;left:16px;top:1px;width:34px;height:58px;overflow:hidden;z-index:var(--z-raised);pointer-events:none}
+.landing[data-state="filled"] .store-slot,.landing[data-state="loading"] .store-slot{display:none}
+.store-col{position:relative;height:100px;animation:store-carousel 5.2s ease-in-out infinite}
+.store-amazon{position:absolute;left:6px;top:19px}
+.store-ebay{position:absolute;left:1px;top:64px}
+@keyframes store-carousel{0%,42.3%{transform:translateY(0)}50%,92.3%{transform:translateY(-42px)}100%{transform:translateY(0)}}
+.landing__err{margin:0;font-size:14px;line-height:20px;color:var(--c-danger-on-dark);text-align:center}
+.landing__err:empty{margin:0}
+.landing.has-error .landing__err{margin-top:8px}
+.landing__form .btn{margin-top:22px}
+.landing__form .btn:focus-visible{outline-color:var(--c-focus-on-dark)}
+
+@media (max-width:419.98px){
+  .landing__title{font-size:min(36px,9.6vw)}
+}
+@media (max-width:359.98px){
+  .ticker__msg{font-size:23px}
+}
+/* short phones: tighten vertical rhythm so the CTA stays above the fold */
+@media (max-width:899.98px) and (max-height:700px){
+  .landing__inner{padding-top:40px;padding-bottom:40px}
+  .landing__stage{margin-top:56px}
+  .landing__spacer{min-height:14px}
+}
+/* tablet portrait (mobile layout): cap the spacer so the form stays near the title; leftover height falls below the CTA */
+@media (min-width:600px) and (max-width:899.98px){
+  .landing__spacer{max-height:240px}
+}
+/* landscape phones: compact logo/stage so the input and CTA fit above the fold (>=360 tall); the ticker replaces the faded title in the same 88px stage */
+@media (max-width:899.98px) and (max-height:480px){
+  .landing__inner{padding-top:16px;padding-bottom:16px}
+  .landing__logo{height:48px}
+  .landing__logo .logo{width:71px;height:48px;margin-left:calc(50% - 36px)}
+  .landing__stage{margin-top:16px;height:88px}
+  .ticker{top:8px}
+  .landing__spacer{min-height:16px}
+}
+/* very short landscape phones (iPhone SE landscape, 320 tall): tighten further so empty/filled/loading need no scroll */
+@media (max-width:899.98px) and (max-height:340px){
+  .landing__inner{padding-top:8px;padding-bottom:8px}
+  .landing__logo{height:40px}
+  .landing__logo .logo{width:59px;height:40px;margin-left:calc(50% - 30px)}
+  .landing__stage{margin-top:8px}
+  .landing__spacer{min-height:8px}
+}
+
+/* ---------- desktop ---------- */
+@media (min-width:900px){
+  .landing{background:var(--grad-landing-d)}
+  .landing__inner{max-width:none;padding:60px 0 24px}
+  /* 190px at >=719px tall (design 1024), shrinks to 96px on short laptop viewports;
+     the 529 keeps even the error state (+28px) scrollbar-free down to 625px tall */
+  .landing__stage{height:100px;margin-top:clamp(96px,calc(100vh - 529px),190px)}
+  .landing__title{white-space:nowrap}
+  .landing__title .br-m{display:none}
+  .ticker{top:27px}
+  /* let the title (250ms fade) clear before message 1 fades in over its lower edge */
+  .ticker__stack[data-step="show1"]{transition-delay:180ms}
+  .landing__spacer{display:none}
+  .landing__form{width:min(var(--d-container),calc(100% - 80px));margin:99px auto 0;align-items:center}
+  .url-wrap{width:100%}
+  .url-input{padding-right:20px}
+  .landing__form .btn{width:var(--d-form-w)}
+  .landing__err{align-self:stretch}
+}
+/* short desktop-layout viewports (landscape large phones, 600px laptops): compact rhythm so input + CTA
+   (and the error line) fit without scrolling; the clamp() above already covers >=625px tall */
+@media (min-width:900px) and (max-height:624.98px){
+  .landing__inner{padding:24px 0 0}
+  .landing__stage{margin-top:24px}
+  .landing__form{margin-top:32px}
+}

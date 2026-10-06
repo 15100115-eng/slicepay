@@ -1,0 +1,128 @@
+/* =====================================================================
+   Cart  #/cart   (m03–m07, d03–d07) — DESIGN_SYSTEM.md §3.11–3.14, §4.2
+   ===================================================================== */
+
+/* ---------- shared product pieces ---------- */
+.prod__row{display:grid;align-items:start}
+.prod__info{min-width:0}
+.prod__title{margin:0;max-width:244px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--c-text)}
+.prod__price-row{display:flex;align-items:center;gap:10px;height:32px;margin-top:10px;min-width:0}
+.prod__price{flex:none;color:var(--c-text)}
+.prod__price-row .toggle{min-width:0}
+.prod__price-row .toggle span{overflow:hidden;text-overflow:ellipsis}
+.prod__x{position:relative}
+/* breakdown open/close: height + opacity are animated from cart.js (Web Animations); the card padding eases with it */
+
+/* ---------- mobile ---------- */
+/* the cart's toast sits at the top on mobile: at the bottom it covered the total line and the weight checkbox (R2F-08) */
+@media (max-width:899.98px){
+  body[data-screen="cart"] #toast-root{bottom:auto;top:12px}
+  body[data-screen="cart"] .toast{transform:translateY(-8px)}
+  /* up there it overlaps the add header that focus returns to: let taps through (and touch can't hover-pause it) (cart-r3-01) */
+  body[data-screen="cart"] .toast{pointer-events:none}
+}
+
+.cart-m__content{padding:15px var(--m-card-x) 0}
+.cart-m__card{padding:0 18px 35px 19px;transition:padding-bottom var(--t-base) var(--ease)}
+.cart-m__card.last-open{padding-bottom:15px}
+.cart-add-head{display:flex;align-items:center;gap:22px;width:calc(100% + 37px);margin:0 -18px 0 -19px;padding:31px 18px 46.5px 22px;
+  border-radius:calc(var(--r-8) - 1px) calc(var(--r-8) - 1px) 0 0;color:var(--c-text);text-align:left;transition:background-color var(--t-fast) var(--ease)}
+.cart-add-head:hover{background:var(--c-primary-wash-weak)}
+.cart-m__card.add-open .cart-add-head:hover{background:none}
+.cart-add-head:focus-visible{outline-offset:-2px;border-radius:var(--r-8)}
+.cart-add-head__ico{width:43px;height:43px;color:var(--c-primary)}
+.cart-add-head .t-h1{min-width:0}
+.cart-m__card.add-open .cart-add-head{padding-bottom:20px}
+.cart-m__addwrap{padding:0 0 16px}   /* §3.12 mobile: 16 px from the cancel link to the divider */
+.cart-m__div{background:var(--c-border)}
+
+.prod--m{padding-top:32.5px}
+.prod-sep{margin-top:32.5px}
+.prod--m .prod__row{grid-template-columns:65px minmax(0,1fr) 24px;grid-template-rows:minmax(65px,auto);column-gap:13px}
+/* narrow phones: the toggle wraps under the price instead of being truncated */
+.prod--m .prod__price-row{flex-wrap:wrap;height:auto;min-height:32px;row-gap:0}
+.prod--m .thumb{width:65px;height:65px}
+.prod--m .badge{width:27px;height:27px;left:-14px;top:51px}
+.prod--m .prod__info{padding-top:4.6px;margin-bottom:-1.6px}   /* content is 66.6px; keep the 65px design row unless the toggle wraps */
+.prod--m .prod__x{margin:18px -8px 0}
+.prod__det--m .bd{margin:8px 0 0 64px;background:var(--c-bg-page);border-radius:var(--r-8);padding:10px 13.5px 10px 12.5px}
+
+.cart-sum--m{margin-top:19px;padding:19.7px 19px 26.3px}
+.cart-sum--m .cart-sum__monthly{display:flex;align-items:baseline;gap:15.5px;height:32px;margin-top:11px}
+.cart-sum__mo{color:var(--c-text-strong)}
+.cart-sum__mo-l{color:var(--c-text-muted)}
+.cart-sum--m .cart-sum__mo-l{position:relative;top:-2px}
+.cart-sum__total{margin:0;color:var(--c-text-strong);white-space:pre}
+.cart-sum--m .cart-sum__total{margin-top:19px}
+
+.cart-checks{display:flex;flex-direction:column}
+.cart-m .cart-checks{margin-top:34px;padding-left:10px;gap:14px}
+.cart-m__spacer{min-height:38px}
+
+@media (max-width:427.98px){
+  .cart-add-head .t-h1{font-size:clamp(18px,5.37vw,23px)}
+}
+/* 375–399 phones: keep the heading on one line and price + toggle on one row (the caret box has 7 px of empty space on its right) */
+@media (max-width:399.98px){
+  .cart-add-head{gap:14px;padding-left:16px}
+  .prod--m .prod__row{column-gap:8px}
+  .prod--m .prod__price-row{gap:6px}
+  .prod--m .prod__price-row .toggle{gap:2px}
+  .prod--m .prod__price-row .toggle .ico{margin-right:-7px}
+}
+@media (max-width:379.98px){
+  .prod__det--m .bd{margin-left:0}
+  .add-form__row{flex-wrap:wrap}
+  .add-form__row .btn--sm{width:100%}
+}
+
+/* ---------- add-product form (both layouts) ---------- */
+.add-form__row{display:flex;gap:12px;align-items:flex-start}
+.add-form__field{flex:1 1 auto;min-width:0}
+.add-form__cancel{display:block;margin:12px auto 0;font-size:14px;line-height:20px}
+
+/* ---------- desktop ---------- */
+
+.cart-d{margin-top:73px}
+.cart-d__grid{display:grid;grid-template-columns:minmax(0,1fr) 455px;column-gap:var(--d-col-gap);align-items:start}
+.cart-d__main{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+.cart-tile{display:flex;flex-direction:column;align-items:center;width:100%;height:97px;padding-top:9px;border-radius:var(--r-8);
+  background:var(--c-primary);color:var(--c-on-primary);text-align:center;transition:background-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.cart-tile:hover{background:var(--c-primary-hover)}
+.cart-tile:active{background:var(--c-primary-active)}
+.cart-tile__ico{width:43px;height:43px}
+.cart-tile__label{margin-top:8.7px;line-height:20px}
+.cart-tile--light{background:var(--c-primary-tint);color:var(--c-text-secondary)}
+.cart-tile--light:hover{background:var(--c-tint-hover)}
+.cart-tile--light:active{background:var(--c-tint-active)}
+.cart-tile.is-open{height:auto;padding:20px;background:var(--c-primary-tint);align-items:stretch;text-align:left}
+.cart-tile.is-open .err{color:var(--c-danger-strong)}   /* 5.8:1 on the tint (#d93025 is 4.23:1) */
+
+.prod--d{padding:15px 32px 18px 16px;transition:padding-bottom var(--t-base) var(--ease)}
+.prod--d.is-open{padding-bottom:12.3px}
+.prod--d .prod__row{grid-template-columns:73px minmax(0,1fr) 24px;column-gap:19px}
+.prod--d .thumb{width:73px;height:73px}
+.prod--d .badge{width:30px;height:30px;left:-15px;bottom:-14px}
+.prod--d .prod__info{padding-top:7.6px}
+.prod--d .prod__x{margin:18.3px -8px 0}
+.prod--d .prod__det{margin:13.4px -12px 0 92px}
+.prod--d .prod__det hr{background:var(--c-border)}
+.prod--d .prod__det .bd{margin-top:12.67px}
+
+.cart-sum--d{padding:19px;position:sticky;top:24px;z-index:var(--z-sticky)}
+.cart-sum__head{display:flex;justify-content:space-between;align-items:center;height:36px;gap:12px}
+.cart-sum__right{display:flex;align-items:center;gap:13px;white-space:nowrap}
+.cart-sum__right .cart-sum__mo-l{line-height:20px}
+.cart-sum--d .cart-sum__total{text-align:right;margin-top:16.7px;line-height:20px}
+.cart-sum__div{margin-top:30.3px;background:var(--c-border)}
+.cart-sum--d .cart-checks{padding:15px 0 0 15px;gap:9px}
+.cart-sum__btn{margin-top:37px}
+
+@media (min-width:1000px) and (max-width:1179.98px){
+  .cart-d__grid{grid-template-columns:minmax(0,1fr) 400px}
+}
+@media (min-width:900px) and (max-width:999.98px){
+  .cart-d__grid{grid-template-columns:minmax(0,1fr);row-gap:20px}
+  .cart-sum--d{position:static;justify-self:end;width:100%;max-width:455px}
+}

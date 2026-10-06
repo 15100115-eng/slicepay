@@ -1,0 +1,281 @@
+/* =====================================================================
+   SlicePay — base.css
+   Tokens (DESIGN_SYSTEM.md §1.9), reset, typography helpers and every
+   shared component. Screen files only add layout.
+   ===================================================================== */
+:root{
+  --c-primary:#5e34ec; --c-primary-hover:#5129e0; --c-primary-active:#4820cc;
+  --c-primary-tint:#f3efff; --c-primary-wash:rgb(94 52 236/.08);
+  --c-primary-wash-weak:rgb(94 52 236/.04); --c-primary-wash-strong:rgb(94 52 236/.14);
+  --c-tint-hover:#ebe4ff; --c-tint-active:#e3d9ff;
+  --c-primary-disabled:rgb(94 52 236/.5); --c-on-primary:#fff; --c-on-primary-disabled:rgb(255 255 255/.5);
+  --c-grad-end:#16064a;
+  --grad-landing-m:linear-gradient(161.68deg,#340fb0 1.95%,#16064a 99.8%);
+  --grad-landing-d:linear-gradient(172.19deg,#340fb0 1.95%,#16064a 99.8%);
+  --c-white:#fff; --c-bg-page:#f4f4f4; --c-gray-150:#e7e7e7; --c-border:#d3d3d3;
+  --c-divider-receipt:#c9c9c9; --c-gray-300:#bcbcbc; --c-placeholder-landing:#ababab;
+  --c-gray-400:#a6a6a6; --c-text-receipt:#9e9e9e; --c-text-muted:#878787; --c-text-note:#7b7b7b;
+  --c-badge:#767676; --c-text-secondary:#666; --c-text-value:#505050; --c-text-strong:#353535;
+  --c-text:#000;
+  --c-input-hover:#5e5e5e; --c-card-input-hover:#cfcfcf;
+  --c-hover-wash:rgb(0 0 0/.05); --c-hover-wash-2:rgb(0 0 0/.06);
+  --c-state-off:rgb(73 69 79/.08); --c-state-on:rgb(101 85 143/.08); --ring-on-dark:rgb(255 255 255/.35);
+  --c-m3-on:#65558f; --c-m3-off:#49454f; --c-caret:#79747e; --c-warn:#ff9900;
+  --c-warn-text:var(--c-warn); --c-placeholder:var(--c-gray-300);
+  --c-back-underline:var(--c-primary);
+  --c-danger:#d93025; --c-danger-strong:#b3261e; --c-danger-ring:rgb(217 48 37/.18); --c-danger-on-dark:#ffc2c2; --c-danger-border-on-dark:#ff6b6b;
+  --c-method-hover:#bfaef7; --c-overlay:rgb(22 6 74/.55);
+  --c-focus:#5e34ec; --c-focus-on-dark:#fff;
+  --r-2:2px; --r-4:4px; --r-8:8px; --r-20:20px;
+  --sh-card-form-m:0 24px 40px -8px rgb(0 0 0/.115),0 2px 8px rgb(0 0 0/.04);
+  --sh-card-form-d:0 28px 60px -2px rgb(0 0 0/.16),0 2px 4px rgb(0 0 0/.05);
+  --sh-receipt-m:0 12.16px 20px rgb(0 0 0/.10);
+  --sh-toast:0 6px 20px rgb(0 0 0/.18);
+  --sh-modal:0 28px 60px -2px rgb(0 0 0/.16),0 2px 4px rgb(0 0 0/.05);
+  --d-container:1120px; --d-col-gap:20px; --d-method-gap:21px; --d-form-w:360px; --d-receipt-w:550px;
+  --m-max:560px; --m-card-x:14px;
+  --z-below:-1; --z-raised:1; --z-sticky:10; --z-header:20; --z-toast:1100;
+  --t-fast:120ms; --t-base:200ms; --ease:cubic-bezier(.2,0,0,1);
+  /* landing ticker steps; landing.js reads --t-ticker-out to time the redirect after the exit fade */
+  --t-ticker-in:250ms; --t-ticker-swap:400ms; --t-ticker-out:200ms;
+  --focus-ring:2px solid var(--c-focus); --focus-offset:2px;
+}
+/* 1x screens: the design's 0.7 px underline is anti-aliased over two rows (≈ 65 % coverage); a solid 1 px
+   primary line reads heavier, so it is drawn at that strength (cart-r2-06). 2x+ renders 0.7 px natively. */
+@media (max-resolution:1.49dppx){ :root{ --c-back-underline:rgb(94 52 236/.65) } }
+/* users who ask for more contrast get text colours that reach 4.5:1 (R2-12; the design values stay the default) */
+@media (prefers-contrast:more){
+  :root{ --c-warn-text:#a65a00; --c-placeholder:#767676; --c-placeholder-landing:#767676; --c-gray-400:#767676;
+    --c-text-receipt:#767676; --c-text-muted:#6b6b6b; --c-text-note:#666 }
+}
+
+/* ---------- reset ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{margin:0;padding:0;min-height:100%}
+body{background:var(--c-bg-page);color:var(--c-text);overflow-x:hidden;line-height:1.36}
+h1,h2,h3,p,ul,ol,figure,fieldset,legend{margin:0;padding:0}
+fieldset{border:0;min-width:0}
+ul{list-style:none}
+img,svg{display:block;max-width:none}
+button{background:none;border:0;padding:0;margin:0;color:inherit;cursor:pointer;text-align:inherit}
+a{color:inherit}
+hr{border:0;margin:0;height:1px;background:var(--c-border)}
+[hidden]{display:none !important}
+input{margin:0;border-radius:0}
+input::-ms-reveal,input::-ms-clear{display:none}
+dialog{padding:0;border:0;color:inherit}
+#app{min-height:100vh;min-height:100dvh}
+#app:focus{outline:none}
+
+/* body backgrounds per screen */
+body[data-screen="landing"]{background:var(--c-grad-end)}
+body[data-screen="auth"]{background:var(--c-white)}
+@media (min-width:900px){ body[data-screen="auth"]{background:var(--c-bg-page)} }
+
+.sr-only{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+
+/* ---------- focus ---------- */
+:focus-visible{outline:var(--focus-ring);outline-offset:var(--focus-offset)}
+:focus:not(:focus-visible){outline:none}
+[tabindex="-1"]:focus{outline:none}
+
+/* ---------- containers ---------- */
+.container{width:min(var(--d-container),calc(100% - 80px));margin-inline:auto}
+.m-page{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;max-width:var(--m-max);margin-inline:auto;padding-bottom:30px}
+.m-spacer{flex:1 1 auto}
+@media (max-width:899.98px){ .only-d{display:none !important} }
+@media (min-width:900px){ .only-m{display:none !important} }
+
+.d-page{padding-bottom:80px}
+/* ---------- desktop page header (logo + back link) ---------- */
+.d-head{position:relative;height:136px;padding-top:60px}
+.logo{display:block;width:113px;height:76px;margin-left:calc(50% - 57px)}
+.back{position:absolute;top:22px;left:0;z-index:var(--z-header);display:inline-flex;align-items:center;gap:4px;height:24px;
+  color:var(--c-primary);font-size:14px;line-height:24px;text-decoration-line:underline;text-decoration-thickness:.7px;text-underline-offset:1.75px;text-decoration-skip-ink:auto;text-decoration-color:var(--c-back-underline);border-radius:var(--r-4)}
+.back svg{width:24px;height:24px;flex:none}
+.back:hover{color:var(--c-primary-active);text-decoration-color:currentColor}
+
+/* ---------- icons ---------- */
+.ico{display:block;flex:none}
+.ico svg{display:block;width:100%;height:100%}
+
+/* ---------- buttons ---------- */
+.btn{position:relative;display:block;width:100%;height:60px;border:0;border-radius:var(--r-8);background:var(--c-primary);color:var(--c-on-primary);
+  font-family:var(--font-caps);font-stretch:87.5%;font-weight:400;font-size:16px;line-height:60px;text-align:center;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;padding:0 12px;cursor:pointer;transition:background-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+  -webkit-tap-highlight-color:transparent}
+.btn:hover{background:var(--c-primary-hover)}
+.btn:active{background:var(--c-primary-active);transform:translateY(1px)}
+.btn--lg{font-size:24px}
+.btn--sm{height:50px;line-height:50px;width:auto;padding:0 24px;flex:none}
+.btn--card{height:45px;line-height:45px}
+.btn[aria-disabled="true"]{background:var(--c-primary-disabled);color:var(--c-on-primary-disabled);cursor:not-allowed;transform:none}
+.btn .btn__label{display:inline}
+.btn.is-loading{pointer-events:none;background:var(--c-primary)}
+.btn.is-loading .btn__label{visibility:visible;opacity:0}   /* hidden visually, still names the button */
+.btn .spinner{position:absolute;left:50%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;color:var(--c-on-primary)}
+.btn--lg .spinner{width:40px;height:40px;margin:-20px 0 0 -20px}
+.spinner svg{width:100%;height:100%;animation:sp-spin .8s linear infinite;transform-origin:50% 50%}
+.no-anim .spinner svg{animation:none}
+@keyframes sp-spin{to{transform:rotate(360deg)}}
+
+.btn-text{display:block;width:100%;height:60px;border-radius:var(--r-8);background:transparent;color:var(--c-primary);
+  font-family:var(--font-caps);font-stretch:87.5%;font-size:16px;line-height:60px;text-align:center;cursor:pointer;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;transition:background-color var(--t-fast) var(--ease)}
+.btn-text:hover{background:var(--c-primary-wash)}
+.btn-text:active{background:var(--c-primary-wash-strong)}
+.btn-text:focus-visible{outline-offset:-2px}
+
+/* ---------- mobile bottom bar ---------- */
+.m-bar{display:grid;grid-template-columns:minmax(0,180px) minmax(0,180px);column-gap:12px;justify-content:space-between;
+  padding:0 30px 0 18.5px;height:60px;flex:none}
+.m-bar > :only-child{grid-column:1}
+@media (max-width:399.98px){
+  .m-bar .btn,.m-bar .btn-text{line-height:20px;white-space:normal;display:flex;align-items:center;justify-content:center;padding:0 8px;text-align:center}
+  .m-bar .btn-text{padding:0 2px}   /* keeps "ᲗᲐᲕᲘᲓᲐᲜ ᲓᲐᲬᲧᲔᲑᲐ" on one line down to 360 px */
+}
+@media (max-width:359.98px){
+  .m-bar{padding:0 16px}
+}
+
+/* ---------- links ---------- */
+.link{color:var(--c-primary);font:inherit;text-decoration-line:underline;text-decoration-thickness:.7px;text-underline-offset:1.75px;text-decoration-skip-ink:auto;
+  text-decoration-color:var(--c-back-underline);cursor:pointer;border-radius:var(--r-2);background:none;padding:0;display:inline}
+.link:hover{color:var(--c-primary-active);text-decoration-color:currentColor}
+/* inline links sit one word space (≈ 3.8 px) after the lead-in text: keep the ring off its last glyph (auth-r3-02) */
+.link:focus-visible{outline-offset:0}
+.link[aria-disabled="true"]{color:var(--c-text-muted);text-decoration:none;cursor:default}   /* auth spec §4.4: resend cooldown */
+
+/* ---------- details toggle ---------- */
+.toggle{display:inline-flex;align-items:center;gap:4px;color:var(--c-text-secondary);font-size:14px;line-height:20px;border-radius:var(--r-4);white-space:nowrap;cursor:pointer}
+.toggle .ico{width:24px;height:24px;color:var(--c-caret);transition:transform var(--t-base) var(--ease)}
+.toggle[aria-expanded="true"] .ico{transform:rotate(180deg)}
+.toggle:hover{color:var(--c-text-strong)}
+.toggle:hover .ico{color:var(--c-m3-off)}
+
+/* ---------- breakdown (dotted-leader rows) ---------- */
+.bd{font-size:14px;color:var(--c-text-value)}
+.bd__row{display:flex;align-items:baseline;height:26px;line-height:26px;white-space:nowrap}
+.bd__lead{flex:1 1 auto;min-width:8px;height:1.1px;align-self:baseline;transform:translateY(-3.2px);
+  background:repeating-linear-gradient(90deg,var(--c-gray-400) 0 3.27px,transparent 3.27px 4.25px)}
+/* 1x: the fractional repeating stops rasterise unevenly (every ~4th gap closes); a tiled 4.25 px dash keeps
+   every gap visible as in the design (cart-r3-03). 2x+ keeps the repeating gradient, which already matches. */
+@media (max-resolution:1.49dppx){ .bd__lead{background:linear-gradient(90deg,var(--c-gray-400) 3.27px,transparent 0) 0 0/4.25px 100% repeat-x} }
+.bd__lab,.bd__amt{flex:none}
+.bd__lab{overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0}
+.bd__amt.is-struck{color:var(--c-gray-400);text-decoration:line-through;text-decoration-thickness:.7px;text-decoration-color:var(--c-gray-400)}
+.bd__row--total{font-weight:700}
+.bd--amount-first .bd__lead{margin:0 5px 0 1px}
+.bd--label-first .bd__lead{margin:0 4.5px}
+
+/* ---------- checkbox ---------- */
+.check{display:flex;align-items:flex-start;cursor:pointer;position:relative;font-size:14px;color:var(--c-text);-webkit-tap-highlight-color:transparent}
+.check input{position:absolute;opacity:0;width:18px;height:18px;margin:0;left:0;top:0;cursor:pointer}
+.check__box{position:relative;flex:none;width:18px;height:18px;border-radius:var(--r-2);border:2px solid var(--c-m3-off);background:transparent}
+.check__box::before{content:"";position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;
+  background:var(--c-state-off);opacity:0;transition:opacity var(--t-fast) var(--ease);pointer-events:none}
+.check input:checked + .check__box{border:0;background:var(--c-m3-on) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath fill='%23fff' d='M7 13.4l-4-4L4.4 8 7 10.6 13.6 4 15 5.4z'/%3E%3C/svg%3E") 0 0/18px 18px no-repeat}
+.check input:checked + .check__box::before{background:var(--c-state-on)}
+.check:hover .check__box::before{opacity:1}
+.check input:focus-visible + .check__box{outline:2px solid var(--c-focus);outline-offset:2px}
+.check input:focus-visible + .check__box::before{opacity:1}
+.check input:active + .check__box::before{opacity:1}
+.check__label{min-width:0}
+.check--cart{gap:15px;min-height:20px}
+.check--cart .check__label{line-height:20px;margin-top:-.3px}
+.check--auth{gap:8px}
+.check--auth .check__label{line-height:18px;margin-top:-1.4px}
+.check.is-invalid .check__box{border-color:var(--c-danger)}
+@media (forced-colors:active){ .check input:checked + .check__box{forced-color-adjust:none;background-color:Highlight} }
+
+/* ---------- form field (auth, add form) ---------- */
+.field{position:relative}
+.field__input{display:block;width:100%;height:50px;border:1px solid var(--c-text-muted);border-radius:var(--r-8);background:var(--c-white);color:var(--c-text);
+  font-family:var(--font-input);font-stretch:100%;font-size:16px;line-height:48px;padding:0 15px;caret-color:var(--c-primary);
+  transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);-webkit-appearance:none;appearance:none}
+.field__input::placeholder{color:var(--c-placeholder);opacity:1}
+/* label: visually hidden while the placeholder shows it; floats onto the top border once there is a value (R2-13) */
+.field__label{position:absolute;left:11px;top:-8px;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;pointer-events:none;
+  padding:0;font-size:12px;line-height:16px;color:var(--c-text-secondary);background:linear-gradient(transparent 50%,var(--c-white) 50%)}
+.field__input:not(:placeholder-shown) + .field__label{width:auto;height:auto;margin:0;padding:0 4px;overflow:visible;clip-path:none;max-width:calc(100% - 22px);text-overflow:ellipsis}
+.field__input:not(:placeholder-shown):focus + .field__label{color:var(--c-primary)}
+.field__input[aria-invalid="true"]:not(:placeholder-shown) + .field__label{color:var(--c-danger-strong)}   /* 4.5:1 on tinted / grey surfaces (R3REV-03) */
+.field__input:hover{border-color:var(--c-input-hover)}
+.field__input:focus{outline:none;border-color:var(--c-primary);box-shadow:inset 0 0 0 1px var(--c-primary)}
+.field__input[aria-invalid="true"]{border-color:var(--c-danger);box-shadow:inset 0 0 0 1px var(--c-danger)}
+.field__input[aria-invalid="true"]:focus{box-shadow:inset 0 0 0 1px var(--c-danger),0 0 0 3px var(--c-danger-ring)}
+/* the floating label's transparent upper half would show the halo through its glyphs (auth-r3-03) */
+.field__input[aria-invalid="true"]:not(:placeholder-shown):focus{box-shadow:inset 0 0 0 1px var(--c-danger)}
+.field--pw .field__input{padding-right:56px}
+.field__eye{position:absolute;right:8.5px;top:5.5px;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;cursor:pointer}
+.field__eye img{width:25px;height:25px}
+.field__eye:hover{background:var(--c-hover-wash)}
+.err{font-size:12px;line-height:16px;color:var(--c-danger);margin-top:5px;text-align:left}
+.err:empty{margin-top:0}   /* stays in the a11y tree so the live region exists before its first message */
+
+/* ---------- product thumb / badge ---------- */
+.thumb{position:relative;flex:none}
+.thumb__img{display:block;width:100%;height:100%;border-radius:var(--r-8);object-fit:cover;object-position:50% 50%;background:var(--c-bg-page)}
+.thumb__ph{display:grid;place-items:center;width:100%;height:100%;border-radius:var(--r-8);background:var(--c-bg-page)}
+.thumb__ph img{width:auto;height:auto;max-width:60%}
+.badge{position:absolute;border-radius:50%;background:var(--c-badge);border:2px solid var(--c-white);color:var(--c-white);font-family:var(--font-latin);font-size:14px;line-height:14px;
+  display:grid;place-items:center;font-weight:400}
+
+/* ---------- remove (X) button ---------- */
+.x-btn{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;color:var(--c-text-muted);cursor:pointer;transition:background-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.x-btn .ico{width:24px;height:24px}
+.x-btn:hover{background:var(--c-hover-wash-2);color:var(--c-text-strong)}
+
+/* ---------- cards ---------- */
+.card{background:var(--c-white);border:1px solid var(--c-border);border-radius:var(--r-8)}
+
+/* ---------- bullet notes ---------- */
+.notes{padding-left:21px;color:var(--c-text-note);font-size:14px;line-height:24px}
+.notes li{position:relative}
+.notes li::before{content:"";position:absolute;left:-12px;top:10.78px;width:3.1px;height:3.1px;border-radius:50%;background:currentColor}
+
+/* ---------- toast ---------- */
+#toast-root{position:fixed;left:0;right:0;bottom:106px;z-index:var(--z-toast);display:flex;justify-content:center;pointer-events:none;padding:0 16px}
+/* mobile auth: sit above the checkbox row (its top is 138 px from the bottom) */
+@media (max-width:899.98px){ body[data-screen="auth"] #toast-root{bottom:154px} }
+/* desktop: above the logo (top 60); on the cart at the bottom, clear of the sticky summary */
+@media (min-width:900px){
+  #toast-root{bottom:auto;top:12px}
+  body[data-screen="cart"] #toast-root{top:auto;bottom:24px}
+}
+.toast{pointer-events:auto;width:max-content;max-width:min(400px,100%);background:var(--c-text-strong);color:var(--c-white);font-size:14px;line-height:20px;overflow-wrap:anywhere;
+  padding:12px 16px;border-radius:var(--r-8);box-shadow:var(--sh-toast);opacity:0;transform:translateY(8px);transition:opacity var(--t-base) var(--ease),transform var(--t-base) var(--ease)}
+@media (min-width:900px){
+  .toast{transform:translateY(-8px)}
+  body[data-screen="cart"] .toast{transform:translateY(8px)}
+}
+.toast.is-in,body[data-screen] .toast.is-in{opacity:1;transform:none}
+.toast b{font-family:var(--font-latin);font-weight:600}
+
+/* ---------- modal ---------- */
+.modal{width:min(480px,calc(100% - 32px));max-width:none;max-height:calc(100dvh - 32px);background:var(--c-white);border-radius:var(--r-20);box-shadow:var(--sh-modal);
+  padding:28px 24px 24px;display:flex;flex-direction:column;gap:16px;overflow:hidden;opacity:0;transform:scale(.96);
+  transition:opacity var(--t-base) var(--ease),transform var(--t-base) var(--ease)}
+.modal:not([open]){display:none}
+.modal.is-in{opacity:1;transform:none}
+.modal::backdrop{background:var(--c-overlay)}
+.modal__title{padding-right:40px;font-size:23px;line-height:28px;font-weight:600}
+.modal__close{position:absolute;top:12px;right:12px}
+.modal__body{font-size:14px;line-height:22px;color:var(--c-text-strong);overflow:auto;display:flex;flex-direction:column;gap:12px;min-height:0;flex:1 1 auto}
+/* only the body shrinks and scrolls on short viewports; title and the 60 px button keep their size */
+.modal > .btn,.modal__title,.modal__close{flex:none}
+.modal__body:focus:not(:focus-visible){outline:none}
+.modal__body:focus-visible{outline:var(--focus-ring);outline-offset:-2px;border-radius:var(--r-4)}
+.modal{position:fixed}
+/* browsers without HTMLDialogElement: same box, centred, with a scrim drawn by a spread shadow */
+.modal--fallback[open]{inset:0;height:fit-content;margin:auto;z-index:var(--z-toast);box-shadow:0 0 0 100vmax var(--c-overlay),var(--sh-modal)}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:1ms !important;scroll-behavior:auto !important}
+  .store-col{animation:none !important}
+  .pay-bd.is-entering,.pay-bd.is-leaving{animation:none !important}
+}
+.no-anim *,.no-anim *::before,.no-anim *::after{transition:none !important;animation-play-state:paused}
+.no-anim .store-col{animation:none !important}

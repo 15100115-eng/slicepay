@@ -1,0 +1,168 @@
+/* =====================================================================
+   SlicePay — font setup (fonts.css)
+   ---------------------------------------------------------------------
+   • Georgian (Mkhedruli + Mtavruli), space, hyphen, ₾
+       → Noto Sans Georgian, SemiCondensed (wdth 87.5) for the UI;
+         normal width (wdth 100) for input text / placeholders and the
+         landing title.
+   • Latin letters, digits and punctuation → Noto Sans (normal width).
+   • Card-form labels → Inter 600.
+
+   All faces are SELF-HOSTED in assets/fonts/ (works offline over
+   file://); the CDN URL is listed second as a fallback only.
+
+   Mtavruli must be written as real code points (U+1C90–U+1CBF);
+   `text-transform: uppercase` does not produce Mtavruli in Chromium.
+   ===================================================================== */
+
+/* ---------- Noto Sans (Latin, digits, punctuation) ---------- */
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('../assets/fonts/noto-sans-latin.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/notosans/v42/o-0bIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjc5a7du3mhPy0.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('../assets/fonts/noto-sans-latin-ext.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/notosans/v42/o-0bIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjc5aDdu3mhPy1Fig.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---------- Inter (card form) ---------- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('../assets/fonts/inter-latin.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- SlicePay Georgian SC (wdth 87.5 = SemiCondensed) ----------
+   Noto Sans Georgian variable (Fontsource v5.3.0). The pinned
+   font-stretch descriptor clamps the wdth axis.                        */
+@font-face {
+  font-family: 'SlicePay Georgian SC';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 87.5%;
+  src: url('../assets/fonts/noto-sans-georgian-georgian-wdth-normal.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-georgian@5.3.0/files/noto-sans-georgian-georgian-wdth-normal.woff2') format('woff2');
+  unicode-range: U+0020, U+00A0, U+0589, U+10A0-10FF, U+1C90-1CBF, U+2D00-2D2F;
+}
+@font-face {
+  font-family: 'SlicePay Georgian SC';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 87.5%;
+  src: url('../assets/fonts/noto-sans-georgian-latin-ext-wdth-normal.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-georgian@5.3.0/files/noto-sans-georgian-latin-ext-wdth-normal.woff2') format('woff2');
+  unicode-range: U+20BE; /* ₾ */
+}
+@font-face {
+  font-family: 'SlicePay Georgian SC';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 87.5%;
+  src: url('../assets/fonts/noto-sans-georgian-latin-wdth-normal.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-georgian@5.3.0/files/noto-sans-georgian-latin-wdth-normal.woff2') format('woff2');
+  unicode-range: U+002D; /* hyphen-minus ("ნაწილ-ნაწილ") */
+}
+
+/* ---------- SlicePay Georgian (wdth 100 = normal width) ---------- */
+@font-face {
+  font-family: 'SlicePay Georgian';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  src: url('../assets/fonts/noto-sans-georgian-georgian-wdth-normal.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-georgian@5.3.0/files/noto-sans-georgian-georgian-wdth-normal.woff2') format('woff2');
+  unicode-range: U+0020, U+00A0, U+0589, U+10A0-10FF, U+1C90-1CBF, U+2D00-2D2F;
+}
+@font-face {
+  font-family: 'SlicePay Georgian';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  src: url('../assets/fonts/noto-sans-georgian-latin-ext-wdth-normal.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-sans-georgian@5.3.0/files/noto-sans-georgian-latin-ext-wdth-normal.woff2') format('woff2');
+  unicode-range: U+20BE;
+}
+
+/* ---------- typed-URL slash: Figma's fallback is the taller Noto Sans Math '/'
+   (0.457em advance); a 1 KB subset with only U+002F ---------- */
+@font-face {
+  font-family: 'SlicePay Slash';
+  font-style: normal;
+  font-display: swap;
+  src: url('../assets/fonts/noto-sans-math-slash.woff2') format('woff2');
+  unicode-range: U+002F;
+}
+
+:root {
+  /* Fallbacks if a font cannot load: Latin-capable system fonts, then
+     fonts known to carry Georgian (SF Georgian via system-ui on Apple,
+     Sylfaen on Windows, DejaVu Sans on Linux, BPG Arial).             */
+  --font-fallback: 'Noto Sans Georgian', system-ui, -apple-system, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, 'BPG Arial', 'DejaVu Sans', Sylfaen, sans-serif;
+  --font-sans:    'SlicePay Georgian SC', 'Noto Sans', var(--font-fallback);
+  --font-body:    var(--font-sans);
+  --font-heading: var(--font-sans);
+  --font-caps:    var(--font-sans);
+  --font-wide:    'SlicePay Georgian', 'Noto Sans', var(--font-fallback);
+  --font-input:   'SlicePay Georgian', 'SlicePay Slash', 'Noto Sans', var(--font-fallback);
+  --font-latin:   'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-card:    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --stretch-sc:   87.5%;
+  --stretch-wide: 100%;
+  --fw-regular:  400;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+}
+
+html {
+  font-family: var(--font-body);
+  font-stretch: var(--stretch-sc);
+  font-weight: var(--fw-regular);
+  font-kerning: normal;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+input, button, textarea, select { font: inherit; letter-spacing: inherit; }
+input, textarea { font-family: var(--font-input); font-stretch: var(--stretch-wide); }
+
+/* ---- Type styles (size / weight / width). Letter-spacing 0 everywhere ---- */
+.t-title       { font-family: var(--font-wide);  font-stretch: 100%;  font-weight: var(--fw-bold); font-size: 36px; line-height: 44px; }
+.t-loading     { font-family: var(--font-sans);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 26px; line-height: 35px; }
+.t-h-total     { font-family: var(--font-caps);  font-stretch: 87.5%; font-weight: var(--fw-semibold); font-size: 30px; line-height: 36px; }
+.t-h1          { font-family: var(--font-heading); font-stretch: 87.5%; font-weight: var(--fw-semibold); font-size: 23px; line-height: 28px; }
+.t-h-caps      { font-family: var(--font-caps);  font-stretch: 87.5%; font-weight: var(--fw-semibold); font-size: 20px; line-height: 20px; }
+.t-h-caps-reg  { font-family: var(--font-caps);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 24px; line-height: 24px; }
+.t-btn         { font-family: var(--font-caps);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 16px; }
+.t-body        { font-family: var(--font-body);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 14px; line-height: 20px; }
+.t-body-16     { font-family: var(--font-body);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 16px; line-height: 20px; }
+.t-body-20     { font-family: var(--font-body);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 20px; line-height: 20px; }
+.t-note        { font-family: var(--font-body);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 12px; line-height: 16px; }
+.t-input-lg    { font-family: var(--font-input); font-stretch: 100%;  font-weight: var(--fw-regular); font-size: 20px; }
+.t-price-lg    { font-family: var(--font-sans);  font-stretch: 87.5%; font-weight: var(--fw-regular); font-size: 24px; line-height: 32px; }
+.t-price-xl    { font-family: var(--font-sans);  font-stretch: 87.5%; font-weight: var(--fw-bold); font-size: 30px; line-height: 36px; }
+.t-price-item  { font-family: var(--font-sans);  font-stretch: 87.5%; font-weight: var(--fw-bold); font-size: 18px; line-height: 20px; }
+.t-latin       { font-family: var(--font-latin); font-weight: var(--fw-regular); }
+.t-card-label  { font-family: var(--font-card);  font-weight: var(--fw-semibold); font-size: 14.5px; line-height: 20px; }

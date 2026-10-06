@@ -1,0 +1,103 @@
+/* =====================================================================
+   Payment method  #/payment   (m12–m15, d12–d15) — §3.14c/d, §3.15, §4.4
+   ===================================================================== */
+.pay-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.pay-head .t-h-total,.pay-total{line-height:36px;white-space:nowrap}
+.pay-total{color:var(--c-text)}
+/* glyph-only nudge: design ink sits 1px lower than the 36px line box puts it (layout unchanged) */
+.pay-head .t-h-total,.pay-head .pay-total{position:relative;top:1px}
+.pay-toggle-row{display:flex;justify-content:flex-end;height:24px}
+.pay-toggle-row .toggle{line-height:24px}
+.pay-bd{background:var(--c-gray-150);border-radius:var(--r-8);height:150px}
+.pay-bd.is-entering{animation:pay-bd-in var(--t-base) var(--ease)}
+/* collapse mirrors the cart breakdown: 200ms fade/slide out in sync with the caret, then hidden (§3.13) */
+.pay-bd.is-leaving{animation:pay-bd-out var(--t-base) var(--ease) forwards;pointer-events:none}
+/* own keyframes: this screen does not depend on cart.css (the cart animates its breakdown with WAAPI) */
+@keyframes pay-bd-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes pay-bd-out{to{opacity:0;transform:translateY(-4px)}}
+@media (prefers-reduced-motion:reduce){.pay-bd.is-leaving{animation:none !important}}
+
+/* method card */
+.method{position:relative;display:grid;background:var(--c-white);border:1px solid var(--c-border);border-radius:var(--r-8);cursor:pointer;
+  transition:border-color var(--t-fast) var(--ease),background-color var(--t-fast) var(--ease);-webkit-tap-highlight-color:transparent}
+.method:hover{border-color:var(--c-method-hover)}
+.method.is-selected{background:var(--c-primary-tint);border-color:var(--c-primary)}
+.method:has(:focus-visible){outline:2px solid var(--c-focus);outline-offset:3px}
+.method__radio{position:relative;width:24px;height:24px;flex:none}
+.method__radio::before{content:"";position:absolute;inset:2px;border-radius:50%;border:2px solid var(--c-m3-off)}
+.method__radio::after{content:"";position:absolute;left:7px;top:7px;width:10px;height:10px;border-radius:50%;background:var(--c-m3-on);transform:scale(0);transition:transform var(--t-fast) var(--ease)}
+.method.is-selected .method__radio::before{border-color:var(--c-m3-on)}
+.method.is-selected .method__radio::after{transform:scale(1)}
+.method__logo{width:81px;height:50px;object-fit:contain;border-radius:var(--r-8)}
+.method__text{display:flex;flex-direction:column;min-width:0}
+.method__title{display:block;line-height:19px;color:var(--c-text);white-space:nowrap}
+.method__sub{display:block;line-height:18px;color:var(--c-text-secondary)}
+
+/* ---------- mobile ---------- */
+.pay-m__content{padding-top:32px}
+.pay-m .pay-head{padding:0 46px 0 40px}
+/* ₾ right side-bearing: design ink right edge sits at 382 (decision #75) */
+.pay-m .pay-head .pay-total{margin-right:-2px}
+.pay-m .pay-toggle-row{padding-right:46px}
+.pay-m .pay-toggle-row .toggle{margin-right:-9px}
+.pay-m .pay-bd{margin:7px var(--m-card-x) 0;padding:10px 32px 10px 13px}
+.pay-m .methods{display:grid;grid-auto-rows:1fr;gap:20px;padding:0 var(--m-card-x);margin-top:25px}
+.pay-m .pay-bd:not([hidden]) + .methods{margin-top:10px}
+.pay-m .method{grid-template-columns:24px 81px minmax(0,1fr);column-gap:12px;padding:19px;align-items:start;min-height:100px}
+.pay-m .method__radio{margin-top:12px}
+.pay-m .method__text{padding:.4px 0 0 4px}
+/* titles wrap only below ~350px (compact layout keeps them on one line from 350–428); 1px glyph nudge matches design baseline */
+.pay-m .method__title{white-space:normal;position:relative;top:1px}
+.pay-m .method__sub{margin-top:4.2px}
+.pay-m .pay-notes{margin:15.6px 0 0 var(--m-card-x)}
+.pay-m__spacer{min-height:30.4px}
+/* compact cards from <400px so the longest title fits one line at every common phone width */
+@media (max-width:399.98px){
+  .pay-m .pay-head{padding:0 24px}
+  .pay-m .pay-toggle-row{padding-right:24px}
+  .pay-m .method{column-gap:10px;padding:15px}
+  .pay-m .method__radio{margin-top:13px}
+  .pay-m .method__logo{width:64px;height:40px;margin-top:5px}
+  .pay-m .method{grid-template-columns:24px 64px minmax(0,1fr)}
+  .pay-m .pay-bd{padding-right:16px}
+}
+@media (max-width:369.98px){.pay-m .method{column-gap:8px;padding:15px 13px}}
+@media (max-width:359.98px){.pay-m .method{column-gap:6px;padding:15px 10px}}
+
+/* forced colors: radios are .sr-only, so keep the custom dot and mark the selected card */
+@media (forced-colors:active){
+  .method__radio::before,.method__radio::after{forced-color-adjust:none}
+  .method__radio::before{border-color:CanvasText}
+  .method__radio::after{background:Highlight}
+  .method.is-selected .method__radio::before{border-color:Highlight}
+  /* inset ring for the selection; the focused card keeps its outer focus outline instead */
+  .method.is-selected:not(:has(:focus-visible)){outline:3px solid Highlight;outline-offset:-3px}
+}
+
+/* ---------- desktop ---------- */
+.pay-d{margin-top:73px}
+.pay-d__grid{display:grid;grid-template-columns:minmax(0,645fr) minmax(0,455fr);column-gap:var(--d-col-gap);align-items:start}
+.pay-d .methods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:var(--d-method-gap)}
+.pay-d .method{display:flex;flex-direction:column;align-items:center;text-align:center;height:278px;padding:40.7px 8px 0}
+.pay-d .method__radio{order:3;margin-top:15.4px}
+.pay-d .method__text{align-items:center}
+.pay-d .method__title{margin-top:17.9px}
+.pay-d .method__sub{margin-top:15.3px}
+
+.pay-sum{padding:19px}
+/* approximates the dropped narrow-bold figures (BUILD_NOTES 72): ink 1192–1261 */
+.pay-sum .pay-total{letter-spacing:-.66px;margin-right:-1.3px}
+.pay-sum .pay-toggle-row{margin:6px -2px 0 0}
+.pay-sum .pay-bd{margin-top:25px;padding:10px 14px 10px 13px}
+.pay-sum__div{margin-top:28px;background:var(--c-border)}
+.pay-sum.is-open .pay-sum__div{margin-top:19px}
+.pay-sum .pay-notes{margin-top:5.57px}
+.pay-sum__btn{margin-top:29.43px}
+.pay-sum.is-open .pay-sum__btn{margin-top:25.43px}
+.pay-sum.no-notes .pay-sum__btn{margin-top:36px}
+.pay-sum.no-notes.is-open .pay-sum__btn{margin-top:32px}
+
+@media (min-width:900px) and (max-width:1179.98px){
+  .pay-d__grid{grid-template-columns:minmax(0,1fr);row-gap:20px}
+  .pay-sum{justify-self:end;width:100%;max-width:455px}
+}

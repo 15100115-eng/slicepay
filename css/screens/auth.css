@@ -1,0 +1,59 @@
+/* =====================================================================
+   Auth  #/register #/login #/recover #/recover/code  (m08–m11, d08–d11)
+   DESIGN_SYSTEM.md §4.3 — one DOM, mobile bottom-anchored bar,
+   desktop inline 360 px form.
+   ===================================================================== */
+.auth{flex:1 1 auto;display:flex;flex-direction:column}
+.auth__form{flex:1 1 auto;display:flex;flex-direction:column}
+.auth__h{padding:34px 16px 0;text-align:center;color:var(--c-text)}
+.auth__h:focus{outline:none}
+.auth__fields{padding:0 35px 0 32px;margin-top:44px}
+.auth__f + .auth__f,.auth__names + .auth__f{margin-top:16px}
+.auth__names > .auth__f{margin-top:0}
+.auth__names{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px}
+.auth__note{margin:16.3px 0 14.7px;color:var(--c-warn-text)}
+.auth__note.is-error{color:var(--c-danger)}
+.auth__f.auth__f--after-note{margin-top:0}
+.auth__prompt{margin:27.57px 0 0;text-align:right;color:var(--c-text)}
+.auth__link-row{margin:22.57px 0 0;text-align:right}
+.auth__prompt--login{margin-top:20px}
+.auth__resend{margin:15.57px 0 0;text-align:left}
+.auth__div{margin-top:14.43px;background:var(--c-gray-300)}
+.auth__f.auth__f--after-div{margin-top:20px}
+.auth__spacer{flex:1 1 auto;min-height:32px}
+.auth__check{padding-left:32px;padding-right:20px;margin-bottom:30px}
+.auth__check .err{margin-left:26px}
+.auth__bar .btn{width:100%}
+
+/* < 360: base.css narrows .m-bar to 16 px gutters — keep the form column on the same edges */
+@media (max-width:359.98px){
+  .auth__fields{padding:0 16px}
+  .auth__check{padding-left:16px;padding-right:16px}
+}
+
+/* < 400: the shared .m-bar shrinks both 180 px columns equally and "ᲙᲝᲓᲘᲡ ᲒᲐᲛᲝᲒᲖᲐᲕᲜᲐ" wraps —
+   give the primary button its 180 px first; the short "ᲣᲙᲐᲜ" takes what is left */
+@media (max-width:399.98px){
+  .auth__bar{grid-template-columns:minmax(0,1fr) minmax(0,180px)}
+  /* the orange note is ~1.2 px wider than the 308 px column at 375 — borrow 2 px of the 35 px right gutter so 'ნომერზე' is not orphaned */
+  .auth__note{margin-right:-2px}
+}
+
+/* ---------- desktop ---------- */
+@media (min-width:900px){
+  .auth-page{max-width:none;padding-bottom:80px;display:block;min-height:0}
+  .auth{display:block}
+  .auth__form{display:block;width:var(--d-form-w);margin:0 auto}
+  .auth__h{padding:0;margin-top:43px}
+  .auth__fields{padding:0}
+  .auth__names{column-gap:20px}
+  .auth__spacer{display:none}
+  .auth__check{padding:0;margin:0}
+  .auth__bar{display:block;height:auto;padding:0;margin-top:30px}
+  .auth-page--register .auth__prompt{margin-top:7.57px}
+  .auth-page--register .auth__check{margin-top:62.43px}
+  .auth-page--login .auth__check{margin-top:72.43px}
+  .auth-page--login .auth__bar{margin-top:15px}
+  /* on --c-bg-page #f4f4f4 --c-danger is 4.34:1 at 12 px — use the AA-safe shade */
+  .auth .err,.auth__note.is-error{color:var(--c-danger-strong)}
+}

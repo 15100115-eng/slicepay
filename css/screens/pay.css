@@ -1,0 +1,48 @@
+/* =====================================================================
+   Card form  #/pay   (m16, d16) — DESIGN_SYSTEM.md §3.20, §4.5
+   ===================================================================== */
+.paycard-wrap{padding-top:55px}
+.paycard{width:min(369px,calc(100% - 58px));margin:0 auto;background:var(--c-white);border-radius:var(--r-20);box-shadow:var(--sh-card-form-m);
+  padding:26px 28.5px 28px}
+.paycard__label{display:block;margin:0;color:var(--c-text-note);font-weight:500}
+#brands-l{margin-top:2px}
+.brands{display:flex;flex-wrap:wrap;gap:9.6px;margin:16px 0 0 1px;height:19px}
+.brands__item{width:28.5px;height:19px;transition:opacity var(--t-fast) var(--ease),filter var(--t-fast) var(--ease)}
+.brands__item img{width:28.5px;height:19px}
+.brands__item.is-dim{opacity:.3;filter:grayscale(1)}
+.paycard__l-num{margin-top:28px}
+.card-input{display:block;width:100%;height:40.5px;margin-top:5px;border:1px solid var(--c-gray-150);border-radius:var(--r-8);background:var(--c-white) no-repeat 18px center;
+  padding:0 18px;font-family:var(--font-card);font-weight:500;font-size:16px;line-height:38.5px;color:var(--c-text);caret-color:var(--c-primary);
+  -webkit-appearance:none;appearance:none;transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease),opacity var(--t-fast) var(--ease)}
+.card-input::placeholder{color:var(--c-placeholder-landing);opacity:1}
+.card-input:hover{border-color:var(--c-card-input-hover)}
+.card-input:focus{outline:none;border-color:var(--c-primary);box-shadow:inset 0 0 0 1px var(--c-primary)}
+.card-input[aria-invalid="true"]{border-color:var(--c-danger);box-shadow:inset 0 0 0 1px var(--c-danger)}
+.card-input[aria-invalid="true"]:focus{box-shadow:inset 0 0 0 1px var(--c-danger),0 0 0 3px var(--c-danger-ring)}
+/* skeleton bars while empty and unfocused (design), real placeholder on focus */
+.card-input:placeholder-shown:not(:focus)::placeholder{color:transparent}
+.card-input--num:placeholder-shown:not(:focus){background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='166' height='9.5' viewBox='0 0 166 9.5'%3E%3Crect width='96.4' height='9.5' rx='4.75' fill='%23e7e7e7'/%3E%3Crect x='102.4' width='63.1' height='9.5' rx='4.75' fill='%23e7e7e7'/%3E%3C/svg%3E")}
+.card-input--exp:placeholder-shown:not(:focus){background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='9.5' viewBox='0 0 100 9.5'%3E%3Crect width='47.6' height='9.5' rx='4.75' fill='%23e7e7e7'/%3E%3Crect x='52.4' width='47.6' height='9.5' rx='4.75' fill='%23e7e7e7'/%3E%3C/svg%3E")}
+.card-input--cvv:placeholder-shown:not(:focus){background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='47.6' height='9.5' viewBox='0 0 47.6 9.5'%3E%3Crect width='47.6' height='9.5' rx='4.75' fill='%23e7e7e7'/%3E%3C/svg%3E")}
+/* empty required field in error: real placeholder instead of skeleton bars */
+.card-input[aria-invalid="true"]:placeholder-shown:not(:focus){background-image:none}
+.card-input[aria-invalid="true"]:placeholder-shown:not(:focus)::placeholder{color:var(--c-placeholder-landing)}
+.paycard__row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14.3px;margin-top:22.5px}
+.paycard__cell{min-width:0}
+.paycard .btn--card{margin-top:28px}
+.btn--card .spinner{width:20px;height:20px;margin:-10px 0 0 -10px}
+.paycard.is-processing .card-input{opacity:.6}
+.paypage__spacer{min-height:24px}
+@media (max-width:359.98px){
+  .paycard{width:calc(100% - 32px);padding-inline:16px}
+  .card-input{padding:0 12px;background-position:12px center}
+}
+@media (max-width:399.98px){
+  .card-input--exp:placeholder-shown:not(:focus){background-size:80px 9.5px}
+}
+
+@media (min-width:900px){
+  .paypage{max-width:none;display:block;min-height:0;padding-bottom:80px}
+  .paycard-wrap{padding-top:73px}
+  .paycard{width:var(--d-form-w);box-shadow:var(--sh-card-form-d);padding:26px 24px 27.5px}
+}
