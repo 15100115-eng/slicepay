@@ -3,3 +3,7 @@ tests/out/
 .DS_Store
 *.log
 .claude/settings.local.json
+
+# design source + detailed design specs stay local (not published)
+docs/design/source/
+docs/design/specs/

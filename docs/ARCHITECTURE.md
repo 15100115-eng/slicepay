@@ -4,7 +4,7 @@
 > to the original build session's temporary workspace, which is not part of the repository; they are historical.
 > What survived from it now lives in the repo: the maintained test suites in `tests/` (the old `tools/<name>.js`
 > names are mapped in `tests/README.md`), the design frames in `tests/fixtures/frames/`, the parity baseline in
-> `tests/visual/baseline-scores.json`, the specs in `docs/`, and the Figma PDF in `docs/design/source/slice-pay.pdf`.
+> `tests/visual/baseline-scores.json`, the specs in `docs/`, and (local only, not in the public repository) the Figma PDF in `docs/design/source/slice-pay.pdf` and the per-screen design specs in `docs/design/specs/`.
 
 PROJECT = the repository root. Open `index.html` directly (file://). The app has no build step, no ES modules, and makes no network calls. Fonts are self-hosted; the CDN is only a fallback.
 

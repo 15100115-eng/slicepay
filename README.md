@@ -5,7 +5,7 @@ SlicePay არის „იყიდე ახლა, გადაიხად�
 მიწოდება), ირჩევს ბანკს და ვადას, და იხდის პირველ შენატანს. შემდეგ თვალს ადევნებს შეკვეთას „ჩემ შეკვეთებში“,
 ხოლო „პროფილში“ არედაქტირებს საკუთარ მონაცემებს, ტელეფონის ნომერს და პაროლს.
 
-პროტოტიპი აწყობილია Figma-ს დიზაინიდან (`docs/design/source/slice-pay.pdf`) ორ ზომაზე: მობილური 428×735
+პროტოტიპი აწყობილია Figma-ს დიზაინიდან ორ ზომაზე: მობილური 428×735
 და დესკტოპი 1440×1024. ინტერფეისი ქართულია. ის არის სუფთა HTML/CSS/vanilla JS: არ აქვს build ნაბიჯი,
 ფრეიმვორკი ან ბიბლიოთეკა, არ აკეთებს ქსელურ მოთხოვნას, და იხსნება პირდაპირ `file://`-დან.
 
@@ -107,7 +107,7 @@ css/                  fonts.css, base.css (ტოკენები, საე�
 js/                   core.js (state, router, ფასები, mock backend), ui.js (საერთო UI), app.js, screens/*.js
 assets/               fonts (self-hosted), icons (SVG), img
 docs/                 ARCHITECTURE.md (build notes), INTEGRATION.md (core/ui კონტრაქტი),
-                      design/ (DESIGN_SYSTEM.md, BRIEF.md, specs/, source/slice-pay.pdf),
+                      design/ (DESIGN_SYSTEM.md, BRIEF.md; specs/ და source/ მხოლოდ ლოკალურად),
                       specs/ (FEATURES_SPEC.md, V4_SPEC.md), screenshots/
 tests/                Playwright ტესტები, დიზაინთან შედარება (იხ. tests/README.md)
 tools/serve.js        პატარა სტატიკური სერვერი (პორტი 8765)
@@ -141,7 +141,8 @@ npm run test:visual  # მხოლოდ დიზაინთან შედ�
 | `docs/ARCHITECTURE.md` | არქიტექტურა, მარშრუტები, QA პარამეტრები, გადაწყვეტილებები, აწყობის ისტორია (v4-ის ჩათვლით) |
 | `docs/INTEGRATION.md` | `SlicePay` core / `ui` API, state-ის ფორმა, ფაილების მფლობელობა |
 | `docs/design/DESIGN_SYSTEM.md` | ვიზუალური ენა: ტოკენები, ტიპოგრაფია, კომპონენტები (გაზომილი PDF-დან) |
-| `docs/design/BRIEF.md`, `docs/design/specs/` | საწყისი ბრიფი და ეკრანების დეტალური სპეციფიკაციები |
+| `docs/design/BRIEF.md` | საწყისი ბრიფი |
+| `docs/design/specs/`, `docs/design/source/slice-pay.pdf` | ეკრანების დეტალური სპეციფიკაციები და Figma-ს ორიგინალი PDF — **მხოლოდ ლოკალურად**, საჯარო რეპოში არ არის (`.gitignore`) |
 | `docs/specs/FEATURES_SPEC.md`, `docs/specs/V4_SPEC.md` | v2 ფუნქციები (მიწოდება, OTP, შეკვეთები …) და v4 (პროფილი, სტატუსი „მუშავდება“) |
 | `docs/screenshots/` | ეკრანის სურათები |
 
