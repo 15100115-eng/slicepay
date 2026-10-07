@@ -118,7 +118,9 @@ async function fresh(b, W, errs) { return L.newCtx(b, W, errs); }
           lg.check('orders back (any) -> previous (#/pay)', (await L.H(p)) === '#/pay', await L.H(p));
           const auth = await p.evaluate(() => !!document.querySelector('.d-head .acct-link'));
           await L.go(p, '#/orders'); await L.sleep(200);
-          lg.check('orders screen header has no account link', !(await p.evaluate(() => !!document.querySelector('.d-head .acct-link'))));
+          // v4 header: the orders list shows both account links, ჩემი შეკვეთები marked aria-current="page"
+          const ol = await p.evaluate(() => [...document.querySelectorAll('.d-head .acct-link')].map(a => a.textContent.trim() + (a.getAttribute('aria-current') === 'page' ? '*' : '')));
+          lg.check('orders screen header: პროფილი · ჩემი შეკვეთები (current)', ol.join('|') === 'პროფილი|ჩემი შეკვეთები*', ol);
         } else {
           await L.go(p, '#/orders'); await L.sleep(200);
           await L.vis(p, '.m-bar [data-back]').click(); await L.sleep(400);

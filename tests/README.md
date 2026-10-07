@@ -23,6 +23,11 @@ Environment:
 | `PARITY_TOL_MEAN`, `PARITY_TOL_PCT` | 1, 1 | Allowed regression per parity case (see below). |
 | `PYTHON` | `python3` | Interpreter for `compare.py` (needs Pillow: `pip3 install pillow`). |
 
+A relative `APP_DIR` or `TEST_OUT` is resolved once, from the directory the runner starts in, and handed to every
+suite as an absolute path. Under `npm test` that directory is the project root (npm runs scripts there, whatever
+folder you call it from); with `node tests/run-all.js` or a single suite it is your shell's current directory.
+Only `tests/out/` is gitignored, so point any other `TEST_OUT` outside the project or use an absolute path.
+
 Every check prints one line that starts with `PASS` or `FAIL`; a suite is green when it exits 0 and printed
 no `FAIL`. `run-all.js` exits 1 when any suite is red, crashed, timed out, or printed no checks at all.
 
@@ -47,10 +52,15 @@ tests/
 `visual/compare.py` scores each one against its design frame: `mean` = mean absolute grey difference
 (0–255) and `pct` = % of pixels that differ by more than 40. A case fails when its `mean` or `pct` is worse
 than `visual/baseline-scores.json` by more than the tolerance (default 1.0 each), or when the page logged a
-console error. Side-by-side images: `tests/out/visual/shots/cmp_<id>.png` (design | app | diff in red).
+console error. Each run writes to its own folder, `tests/out/visual/runs/<run>/` (`PARITY_RUN` or a timestamp + pid),
+so parallel runs never delete each other's shots; side-by-side images are in `<run>/shots/cmp_<id>.png` (design | app |
+diff in red), and `tests/out/visual/parity.json` is a copy of the latest run's result (it names the folder). Old run
+folders are pruned (the newest `PARITY_KEEP`=5 are kept, and any younger than `PARITY_KEEP_HOURS`=6).
 
 After an intentional visual change, review the cmp images and run
-`node tests/visual/parity.js --update-baseline`.
+`node tests/visual/parity.js --update-baseline` (all cases) or `... --update-baseline m01,d02` (only those ids;
+the other cases keep their scores). The file is rewritten as valid JSON with a project-relative `source`, and the
+update is refused when a captured case logged console errors.
 
 Notes: d03 and d06 have frames but no parity case (d03 is the `addTile=below` cart layout, checked by hand);
 d00's frame is 4 px off (see `docs/design/DESIGN_SYSTEM.md`), which is part of its baseline score.
@@ -73,7 +83,7 @@ were not kept). Absolute paths were replaced by `lib/env.js`; output goes to `te
 | e2e/success-landing-flow | v2sl_flow.js | landing account link, success CTAs |
 | e2e/orders-flow | v2orders_flow.js | orders list/detail, `#/pay?order=`, widths |
 | e2e/core-contract | v2core_verify.js | `SlicePay` core / `SlicePay.ui` contract (docs/INTEGRATION.md) |
-| e2e/qa-urls | v2int_qaurls.js | every QA URL at 320/428/1440/1920 |
+| e2e/qa-urls | v2int_qaurls.js | every QA URL (v2 + v4 profile) at 320/428/1440/1920: overflow, console errors, expected text |
 | e2e/profile | new in v4 (same ground as the build session's v4prof_flow.js) | `#/profile`: guard + login `next`, personal info save + validation + escaping, profile edit → delivery prefill, phone change (required / format / same / taken, wrong / short / expired code, 30 s resend cooldown, reload on the code step), re-keying (users, orders, remember-me, session; old number refused at login, new one works), password change (all errors, eye reset), logout `ᲒᲐᲡᲕᲚᲐ` |
 | e2e/status | new in v4 | first status `მუშავდება`: status model (7 steps), new checkout order in list + detail, demo orders' processing step, legacy stored orders without the step (320/428/1440) |
 | functional/round1/* | v2f_{defer,dlv,explain,flip,kb,misc,nav,otp,prices,terms,users,xss}.js | deferred-payment, delivery, explanation, breakpoint-flip, keyboard, eta-escaping-misc, navigation-guards, otp, price-matrix, terms, users-storage, xss |
@@ -90,3 +100,7 @@ v4 (`docs/specs/V4_SPEC.md`) did this: new orders start at `processing` / `მ�
 `.d-head .acct-link--orders` / `--profile`, not `.d-head .acct-link`), the orders list heading link is `პროფილი`
 (`.ord-top__out`) and logout lives on `#/profile` (use `L.logout(p, viaOrders)` from `lib/harness.js`), and the user
 record keeps the account's own names / e-mail (never the password or the personal ID).
+
+v4 finish: the orders list header shows both account links too (`ჩემი შეკვეთები` with `aria-current="page"`), so the
+heading-row `.ord-top__out` is mobile-only (`only-m`). At desktop width click the header link
+`.d-head .acct-link--profile`; `L.profLinkSel(p)` returns the right selector for the page's viewport.

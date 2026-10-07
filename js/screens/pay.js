@@ -156,6 +156,8 @@
       if (frozen) return;
       timer = setTimeout(function () {
         timer = null;
+        // v4 r1: this tab's account was re-keyed in another tab: the session ends (toast + guard), nothing is paid
+        if (SP.dropStaleSession()) return;
         if (orderId) {
           // order mode: mark the due deferred amounts paid (a customs-blocked order moves on), back to its detail
           SP.payDeferred(orderId);
@@ -168,7 +170,7 @@
         }
         // checkout: stores the order (the success snapshot), then empties the cart and resets the per-order
         // choices (defers, method, term, delivery.done), so Back from success cannot pay the same cart again
-        SP.completeCheckout();
+        if (!SP.completeCheckout()) return;   // (null: a stale session was ended instead)
         SP.go('/success', { replace: true });
       }, 1200);
     }

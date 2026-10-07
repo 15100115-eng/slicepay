@@ -239,8 +239,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     /* ---------------- logout / login next ---------------- */
     await p.evaluate(() => { location.hash = '#/orders'; }); await sleep(300);
     // v4: logout lives on #/profile; the orders heading link is პროფილი
-    ck('orders heading link reads პროფილი', (await txt('.ord-top__out')) === 'პროფილი', await txt('.ord-top__out'));
-    await vis('.ord-top__out').click(); await sleep(300);
+    // v4f: desktop uses the header link (the heading-row link is mobile-only)
+    const PROF = w >= 900 ? '.d-head .acct-link--profile' : '.ord-top__out';
+    ck('orders პროფილი link reads პროფილი', (await txt(PROF)) === 'პროფილი', await txt(PROF));
+    await vis(PROF).click(); await sleep(300);
     ck('პროფილი -> #/profile', (await hash()) === '#/profile', await hash());
     await vis('[data-action="logout"]').click(); await sleep(300);
     ck('logout -> landing + toast', (await hash()) === '#/' && (await toast()).includes('თქვენ გამოხვედით სისტემიდან') && !(await st()).userPhone);

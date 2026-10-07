@@ -40,8 +40,8 @@ const pill = (p, sel) => p.evaluate(s => { const e = [...document.querySelectorA
       lg.check('new order pill მუშავდება (v4 first status) in progress colours (#f3efff / #5e34ec)', pl.t === 'მუშავდება' && pl.bg === 'rgb(243, 239, 255)' && pl.fg === 'rgb(94, 52, 236)', pl);
       await p.reload(); await L.sleep(400);
       lg.check('reload keeps A signed in + the order', /^#\/orders$/.test(await L.H(p)) && JSON.stringify(await listIds(p)) === JSON.stringify([oA.id]), await listIds(p));
-      // logout (v4: orders heading link პროფილი → ᲒᲐᲡᲕᲚᲐ on #/profile)
-      await L.vis(p, '.ord-top__out').click(); await L.waitHash(p, /^#\/profile$/);
+      // logout (v4: orders პროფილი link → ᲒᲐᲡᲕᲚᲐ on #/profile; v4f: header link on desktop, heading row on mobile)
+      await L.vis(p, L.profLinkSel(p)).click(); await L.waitHash(p, /^#\/profile$/);
       await L.vis(p, '[data-action="logout"]').click(); await L.sleep(300);
       lg.check('logout -> landing + toast', (await L.H(p)).replace(/\?.*/, '') === '#/' && /თქვენ გამოხვედით სისტემიდან/.test(await L.toast(p)), [await L.H(p), await L.toast(p)]);
       const acct = await L.txt(p, '.acct-link');

@@ -13,6 +13,7 @@
   var USERS_KEY = 'slicepay:v1:users';
   var REMEMBER_KEY = 'slicepay:v1:remember';
   var ORDERS_KEY = 'slicepay:v1:orders';      // v2: {<phone>: [order, …]} — no card data, personal ID masked
+  var FIRST_STATUS = 'processing';             // v4: every order starts here (SP.FIRST_STATUS, 'მუშავდება')
   var DESK_MQ = '(min-width: 900px)';
 
   /* ------------------------------------------------------------------
@@ -50,11 +51,13 @@
       term: 4,               // instalment months (v2); always one of SP.termsFor(method)
       delivery: deliveryDefaults(),   // v2 delivery step: {done, method, branchId, city, address, note, first, last, pid}
       userPhone: null,       // logged-in user (9-digit phone)
+      userUid: null,         // v4 finish r2: the signed-in account's record id (rec.uid) — the session belongs to that record,
+                             // not to whoever holds the number later (SP.isAuthed / SP.dropStaleSession)
       profile: null,         // {first,last} of the account verified in this session (prefills delivery)
       pendingReg: null,      // v2 registration awaiting SMS verification: {first,last,phone,email,rec,code,sentAt,expiresAt,next,demo}
       phoneChange: null,     // v4 profile phone change awaiting SMS verification: {from, phone, code, sentAt, expiresAt, demo}
       order: null,         // snapshot created on payment (also stored in the orders store)
-      recover: null,         // {phone, code, sentAt}
+      recover: null,         // {phone, code, sentAt, expiresAt, uid} — uid: the account record the code was sent for (v4 finish r3)
       loginPhone: null,      // just-recovered phone, pre-fills the login form
       ui: { details: {}, payDetails: false }
     };
@@ -93,10 +96,10 @@
       sign-out actions, R2-05) unless opts.signOut is passed. */
   SP.reset = function (opts) {
     opts = opts || {};
-    var keepUser = opts.signOut ? null : state.userPhone;
+    var keepUser = opts.signOut ? null : state.userPhone, keepUid = opts.signOut ? null : state.userUid;
     var keepDelivery = opts.signOut ? null : state.delivery, keepProfile = opts.signOut ? null : state.profile;
     state = defaults();
-    state.userPhone = keepUser;
+    state.userPhone = keepUser; state.userUid = keepUser ? keepUid : null;
     // a signed-in "start over" keeps the recipient / address for the next order, but it must be confirmed again
     if (keepDelivery) state.delivery = deliveryDefaults(keepDelivery);
     state.profile = keepProfile;
@@ -255,7 +258,9 @@
     // v4: profile
     profileSaved: 'ცვლილებები შენახულია',
     phoneChanged: 'ტელეფონის ნომერი შეიცვალა',
-    passwordChanged: 'პაროლი შეიცვალა'
+    passwordChanged: 'პაროლი შეიცვალა',
+    // v4 r1: this tab's account was re-keyed (or removed) in another tab — the session ends (SP.dropStaleSession)
+    sessionEnded: 'ანგარიშის მონაცემები შეიცვალა. გთხოვთ, ხელახლა შეხვიდეთ'
   };
   SP.valid = {
     /** returns the 9-digit national number or null */
@@ -520,7 +525,8 @@
 
   /* ------------------------------------------------------------------
      Mock backend (DEMO account store in localStorage)
-     Per phone: {salt, pass, created, first, last, email}. v4: the account's own
+     Per phone: {uid, salt, pass, created, first, last, email}. uid (v4 finish r2) is the record's stable id: it
+     moves with the record on a phone change and a session is bound to it (state.userUid). v4: the account's own
      profile (first / last name, e-mail) is persisted with it, so the profile
      page can show and edit it; never the personal ID, never card data. The hash
      is a salted, iterated FNV-1a: it only keeps plain passwords out of storage.
@@ -543,7 +549,20 @@
     return 'h2.' + h1.toString(36) + '.' + h2.toString(36);
   }
   function legacyHash(p) { return 'h' + hashStr('slicepay:' + p).toString(36) + '.' + hashStr(p + ':salt').toString(36); }
-  function record(password) { var salt = newSalt(); return { salt: salt, pass: pwHash(password, salt), created: Date.now() }; }
+  function record(password) { var salt = newSalt(); return { uid: SP.uid(), salt: salt, pass: pwHash(password, salt), created: Date.now() }; }
+  /** v4 finish r2: a user record's stable id — rec.uid; a record stored by an older build has none and falls back to
+      its creation time (SP.signIn then stores that as its uid). '' for no record */
+  function accountId(u) {
+    if (!u || typeof u !== 'object') return '';
+    return u.uid ? String(u.uid) : u.created ? 'c' + u.created : '';
+  }
+  /** v4 finish r2: the signed-in account's record, or null when the session is stale: no record under the session's
+      number, or a record that is a different account (the number was freed by a phone change and taken by someone
+      else — or re-created, the demo number), or a session from an older build that never stored the account's id */
+  function sessionUser() {
+    var ph = state.userPhone, u = ph && users()[ph];
+    return u && typeof u === 'object' && state.userUid && accountId(u) === state.userUid ? u : null;
+  }
   function matches(u, password) { return u.salt ? u.pass === pwHash(password, u.salt) : u.pass === legacyHash(password); }
   /** the profile fields of a user record (v4): trimmed strings, '' when missing */
   function profileOf(u) {
@@ -554,7 +573,9 @@
   function withPassword(u, password) {
     var r = record(password), p = profileOf(u);
     r.created = (u && u.created) || r.created;
+    r.uid = accountId(u) || r.uid;   // the same account (v4 finish r2: sessions bound to it stay valid)
     r.first = p.first; r.last = p.last; r.email = p.email;
+    if (u && u.qa) r.qa = true;   // the QA marker (the demo account re-keyed, see rekeyAccount) survives too
     return r;
   }
   SP.DEMO_USER = { phone: '555123456', password: 'slicepay1' };
@@ -562,32 +583,46 @@
   SP.QA_NEW_PHONE = '577123456';   // the new number of the #/profile?demo=1&edit=phone&step=code seed (code 4821)
   SP.api = {
     userExists: function (phone) { return !!users()[phone]; },
-    register: function (u) {
-      var all = users();
-      if (all[u.phone]) return { ok: false, error: 'exists' };
-      var r = record(u.password), p = profileOf(u);
-      r.first = p.first; r.last = p.last; r.email = p.email;
-      all[u.phone] = r;
-      saveUsers(all);
-      return { ok: true };
-    },
     login: function (phone, password) {
       var u = users()[phone];
       if (!u) return { ok: false, error: 'nouser' };
       if (!matches(u, password)) return { ok: false, error: 'password' };
       return { ok: true };
     },
-    sendCode: function (phone) {
-      var code = newCode();
-      state.recover = { phone: phone, code: code, sentAt: Date.now() };
+    /** a recovery code for the account that holds `phone` now. v4 finish r3 (v4f-r3-01 / V4F-REV3-01): the pending
+        recovery is bound to that account's RECORD (uid), not to the number — a phone change can free the number and
+        someone else can register it — and it expires after SP.VERIFY_TTL. With `uid` (a resend of a pending
+        recovery) no code is sent when the number no longer belongs to that account: returns ''. */
+    sendCode: function (phone, uid) {
+      var id = accountId(users()[phone]);
+      if (!id || (arguments.length > 1 && id !== uid)) return '';
+      var code = newCode(), now = Date.now();
+      state.recover = { phone: phone, code: code, sentAt: now, expiresAt: now + SP.VERIFY_TTL, uid: id };
       SP.save();
       return code;
     },
-    resetPassword: function (phone, password) {
-      var all = users();
-      if (!all[phone]) return { ok: false };
+    /** the new password for the account the recovery was started for. `uid` defaults to the pending recovery's
+        (state.recover for this number). → {ok:true} | {ok:false, error:'gone'} — the number has no account now, or
+        belongs to a different account than the one the code was sent for, or the recovery is not bound to one (an
+        older build's) | {ok:false, error:'expired'} — the code is older than SP.VERIFY_TTL. Nothing is changed
+        unless ok. (v4 finish r3) */
+    resetPassword: function (phone, password, uid) {
+      var all = users(), rec = state.recover && state.recover.phone === phone ? state.recover : null;
+      if (uid === undefined) uid = rec ? rec.uid : undefined;
+      if (!all[phone] || !uid || accountId(all[phone]) !== uid) return { ok: false, error: 'gone' };
+      if (rec && !(Date.now() <= rec.expiresAt)) return { ok: false, error: 'expired' };
       all[phone] = withPassword(all[phone], password); saveUsers(all);   // the profile survives a recovery (v4)
       return { ok: true };
+    },
+    /** v4 finish r3: the pending recovery's number still belongs to the account the code was sent for */
+    recoverFor: function (rec) {
+      rec = rec || state.recover;
+      return !!rec && !!rec.uid && accountId(users()[rec.phone]) === rec.uid;
+    },
+    /** v4 finish r3: the pending recovery is past its expiry (or an older build's, with none) */
+    recoverExpired: function (rec) {
+      rec = rec || state.recover;
+      return !!rec && !(Date.now() <= rec.expiresAt);
     },
     /** the demo account exists (password slicepay1); a demo record without a profile gets the demo profile (v4) */
     ensureDemoUser: function () {
@@ -599,8 +634,10 @@
     },
     /** v4 QA (#/profile?demo=1): the demo account back to its seed — password slicepay1 and the demo profile */
     resetDemoUser: function () {
-      var all = users(), P = SP.DEMO_PROFILE;
-      all[SP.DEMO_USER.phone] = withPassword(P, SP.DEMO_USER.password);
+      var all = users(), P = SP.DEMO_PROFILE, cur = all[SP.DEMO_USER.phone];
+      var r = withPassword(P, SP.DEMO_USER.password);
+      if (accountId(cur)) r.uid = accountId(cur);   // still the same (demo) account: its sessions stay valid (v4 finish r2)
+      all[SP.DEMO_USER.phone] = r;
       saveUsers(all);
     },
     remember: function (phone) { if (phone) storeSet('localStorage', REMEMBER_KEY, phone); else storeDel('localStorage', REMEMBER_KEY); },
@@ -614,7 +651,9 @@
       // that same number after 'ნომრის შეცვლა' stays the demo registration instead of 'already exists' (auth-v2r3-03).
       // It keeps the seed's code, so QA can walk verify → change number → verify with 4821
       var prev = state.pendingReg, demoRe = !!(prev && prev.demo && prev.phone === u.phone);
-      if (users()[u.phone] && !demoRe) return { ok: false, error: 'exists' };
+      // the demo number is reserved (v4 r1): it always belongs to the demo account, even while that account has
+      // been re-keyed to another number in this browser (SP.start re-creates it)
+      if ((users()[u.phone] || u.phone === SP.DEMO_USER.phone) && !demoRe) return { ok: false, error: 'exists' };
       // a number already sent a code inside its 30 s resend cooldown ("ნომრის შეცვლა" → the same number, or back
       // to it after another one) keeps that code: switching numbers cannot bypass the cooldown (v2f-r2-06)
       var sent = demoRe ? null : recentSent(u.phone), now = Date.now();
@@ -650,13 +689,17 @@
       if (code !== p.code) return { ok: false, error: 'wrong' };
       var all = users();
       if (p.demo) SP.api.ensureDemoUser();
-      else if (all[p.phone]) return { ok: false, error: 'exists' };
+      else if (all[p.phone] || p.phone === SP.DEMO_USER.phone) return { ok: false, error: 'exists' };
       else {
         // v4: the verified account keeps its own profile (names, e-mail) with the password record
         var rec = {}, pr = profileOf(p);
         for (var k in p.rec || {}) rec[k] = p.rec[k];
         rec.first = pr.first; rec.last = pr.last; rec.email = pr.email;
         all[p.phone] = rec; saveUsers(all);
+        // v4 r1: a new account starts with no orders — anything stored under a free number (an older build's
+        // leftovers) belongs to nobody and is dropped, never inherited
+        var oa = ordersAll();
+        if (oa[p.phone]) { delete oa[p.phone]; ordersSave(oa); }
       }
       // sign in first: switching to this account resets the previous person's session data, and the verified
       // registration's own names must survive that (they prefill the delivery recipient)
@@ -674,15 +717,15 @@
     /** → {phone, first, last, email} of the signed-in account, or null. Names fall back to the session's profile
         (an account created by an older build has none stored) */
     getProfile: function () {
-      var ph = state.userPhone;
-      if (!ph) return null;
-      var p = profileOf(users()[ph]), s = state.profile || {};
+      var ph = state.userPhone, u = sessionUser();
+      if (!u) return null;   // (v4 finish r2: a stale session reads nobody's profile)
+      var p = profileOf(u), s = state.profile || {};
       return { phone: ph, first: p.first || String(s.first || ''), last: p.last || String(s.last || ''), email: p.email };
     },
     /** validates like the registration form (names required, e-mail required + format) and saves.
         p: {first, last, email} → {ok:true, profile} | {ok:false, error:'invalid', errors:{first|last|email: message}} */
     updateProfile: function (p) {
-      var ph = state.userPhone, all = users(), u = ph && all[ph];
+      var ph = state.userPhone, all = users(), u = sessionUser() && all[ph];
       if (!u) return { ok: false, error: 'auth' };
       p = profileOf(p);
       var errors = {};
@@ -699,19 +742,21 @@
     },
     /** p: {current, next, repeat} → {ok:true} | {ok:false, error, errors:{current|next|repeat: message}}.
         current: empty → required, wrong → passCurrent; next: empty → required, < 8 → password, the same as the
-        current one → passSame; repeat: empty → required, different → match. On success the password record is
-        replaced (new salt); the profile stays. */
+        current one → passSame (v4 r1: only checked once the current password is verified, so the form cannot be
+        used to test guesses of the password); repeat: empty → required, different → match. On success the password
+        record is replaced (new salt); the profile stays. */
     changePassword: function (p) {
-      var ph = state.userPhone, all = users(), u = ph && all[ph];
+      var ph = state.userPhone, all = users(), u = sessionUser() && all[ph];
       if (!u) return { ok: false, error: 'auth' };
       p = p || {};
       var cur = String(p.current || ''), nw = String(p.next || ''), rep = String(p.repeat || ''), errors = {}, codes = [];
       function err(f, code, msg) { if (!errors[f]) { errors[f] = msg; codes.push(code); } }
+      var curOk = !!cur && matches(u, cur);
       if (!cur) err('current', 'required', SP.msg.required);
-      else if (!matches(u, cur)) err('current', 'current', SP.msg.passCurrent);
+      else if (!curOk) err('current', 'current', SP.msg.passCurrent);
       if (!nw) err('next', 'required', SP.msg.required);
       else if (!SP.valid.password(nw)) err('next', 'password', SP.msg.password);
-      else if (matches(u, nw)) err('next', 'same', SP.msg.passSame);
+      else if (curOk && matches(u, nw)) err('next', 'same', SP.msg.passSame);
       if (!rep) err('repeat', 'required', SP.msg.required);
       else if (rep !== nw) err('repeat', 'match', SP.msg.match);
       if (codes.length) return { ok: false, error: codes[0], errors: errors };
@@ -725,12 +770,12 @@
         valid) gets the same code back. The pending change is state.phoneChange (session only). */
     startPhoneChange: function (raw) {
       var cur = state.userPhone;
-      if (!cur) return { ok: false, error: 'auth', message: '' };
+      if (!sessionUser()) return { ok: false, error: 'auth', message: '' };   // (v4 finish r2: the record must exist and be this session's)
       if (!String(raw || '').trim()) return { ok: false, error: 'required', message: SP.msg.required };
       var phone = SP.valid.phone(raw);
       if (!phone) return { ok: false, error: 'format', message: SP.msg.phone };
       if (phone === cur) return { ok: false, error: 'same', message: SP.msg.phoneSame };
-      if (users()[phone]) return { ok: false, error: 'exists', message: SP.msg.phoneTaken };
+      if (users()[phone] || phone === SP.DEMO_USER.phone) return { ok: false, error: 'exists', message: SP.msg.phoneTaken };   // (the demo number is reserved)
       var prev = state.phoneChange, now = Date.now();
       // the QA seed (or a pending change) for this same number inside its cooldown keeps its code
       // (the QA seed keeps its code 4821 while valid, as the registration seed does)
@@ -743,12 +788,16 @@
       SP.save();
       return { ok: true, code: state.phoneChange.code, phone: phone };
     },
-    /** a new code for the pending phone change → {ok:true, code} | {ok:false, error:'cooldown', left} | {ok:false, error:'none'} */
+    /** a new code for the pending phone change → {ok:true, code} | {ok:false, error:'cooldown', left} |
+        {ok:false, error:'none'|'auth'} | {ok:false, error:'exists', message} (v4 finish r2: the new number was taken
+        meanwhile — no code is sent to it) */
     resendPhoneChange: function () {
+      if (!sessionUser()) return { ok: false, error: 'auth', message: '' };
       var p = pendingPhoneChange();
       if (!p) return { ok: false, error: 'none' };
       var left = SP.phoneChangeCooldown();
       if (left > 0) return { ok: false, error: 'cooldown', left: left };
+      if (users()[p.phone] || p.phone === SP.DEMO_USER.phone) return { ok: false, error: 'exists', message: SP.msg.phoneTaken };
       var now = Date.now();
       p.code = newCode(); p.sentAt = now; p.expiresAt = now + SP.VERIFY_TTL; p.demo = false;
       logSent(p);
@@ -757,17 +806,19 @@
     },
     /** step 2: checks the code; on success the account is re-keyed to the new number — the users store, the
         user's orders, remember-me and the session (state.userPhone) — and the old number is free again.
-        → {ok:true, phone, old} | {ok:false, error:'none'|'format'|'expired'|'wrong'|'exists', message} */
+        → {ok:true, phone, old} | {ok:false, error:'none'|'format'|'expired'|'wrong'|'exists'|'auth', message} */
     verifyPhoneChange: function (code) {
+      if (!sessionUser()) return { ok: false, error: 'auth', message: '' };
       var p = pendingPhoneChange();
       if (!p) return { ok: false, error: 'none', message: '' };
       code = String(code || '').trim();
       if (!/^\d{4}$/.test(code)) return { ok: false, error: 'format', message: SP.msg.code };
       if (Date.now() > p.expiresAt) return { ok: false, error: 'expired', message: SP.msg.codeExpired };
       if (code !== p.code) return { ok: false, error: 'wrong', message: SP.msg.codeWrong };
-      if (users()[p.phone]) return { ok: false, error: 'exists', message: SP.msg.phoneTaken };
+      if (users()[p.phone] || p.phone === SP.DEMO_USER.phone) return { ok: false, error: 'exists', message: SP.msg.phoneTaken };
       var old = p.from;
-      if (!rekeyAccount(old, p.phone)) return { ok: false, error: 'none', message: '' };
+      // (a re-key that cannot happen means the account is gone under the session: 'auth' ends it, v4 finish r2)
+      if (!rekeyAccount(old, p.phone)) return { ok: false, error: 'auth', message: '' };
       return { ok: true, phone: p.phone, old: old };
     },
     /** drops a pending phone change ('გაუქმება') */
@@ -783,14 +834,21 @@
     var p = pendingPhoneChange();
     return p && p.sentAt ? Math.max(0, Math.ceil((p.sentAt + SP.VERIFY_COOLDOWN - Date.now()) / 1000)) : 0;
   };
-  /** moves an account from one phone to another: user record, orders, remember-me, session. The old key is removed */
+  /** moves an account from one phone to another: user record (its uid included — the session's state.userUid stays
+      valid), orders, remember-me, session. The old key is removed.
+      The account's orders REPLACE anything stored under the new number (v4 r1: orders left there by nobody's account
+      are never merged in). The demo account re-keyed gets rec.qa (the QA data marker: #/profile?demo=1 may only
+      delete a 577 123 456 record that carries it). Other tabs signed in to the old number end their session
+      (SP.dropStaleSession: on the 'storage' event and on every route handle) */
   function rekeyAccount(old, nw) {
     var all = users();
     if (!old || !nw || old === nw || !all[old] || all[nw]) return false;
     SP.orders.list(old);   // the demo account's lazily seeded history is materialised first, so it moves with it
-    all[nw] = all[old]; delete all[old]; saveUsers(all);
+    all[nw] = all[old]; delete all[old];
+    if (old === SP.DEMO_USER.phone) all[nw].qa = true;
+    saveUsers(all);
     var oa = ordersAll();
-    oa[nw] = (oa[nw] || []).concat(oa[old] || []); delete oa[old]; ordersSave(oa);
+    oa[nw] = oa[old] || []; delete oa[old]; ordersSave(oa);
     if (SP.api.remembered() === old) SP.api.remember(nw);
     state.userPhone = nw;
     if (state.loginPhone === old) state.loginPhone = nw;
@@ -846,21 +904,41 @@
     var p = state.pendingReg;
     return p && p.sentAt ? Math.max(0, Math.ceil((p.sentAt + SP.VERIFY_COOLDOWN - Date.now()) / 1000)) : 0;
   };
-  SP.isAuthed = function () { return !!state.userPhone; };
+  /** signed in = a session phone whose account record exists AND is the account this session signed in to
+      (v4 r1: a phone change in another tab deletes the old record; v4 finish r2: the freed number may since belong to
+      someone else — the record's uid must be state.userUid). Such a session counts as signed out and is ended by
+      SP.dropStaleSession */
+  SP.isAuthed = function () { return !!sessionUser(); };
+  /** v4 r1: ends a session whose account is gone (re-keyed or removed in another tab — sessionStorage is per tab,
+      localStorage shared) or whose number now holds a different account (v4 finish r2: a restored / discarded tab
+      that missed the 'storage' event; a session from an older build with no state.userUid is ended once too):
+      clears the whole session as a sign-out does, toasts SP.toastMsg.sessionEnded and, unless
+      opts.render === false, re-renders so the route guard takes over (a signed-in screen → login).
+      → true when it ended the session, false when there was nothing to do */
+  SP.dropStaleSession = function (opts) {
+    if (!state.userPhone || sessionUser()) return false;
+    SP.reset({ signOut: true, go: false });
+    if (SP.ui && SP.ui.toast) SP.ui.toast(SP.toastMsg.sessionEnded);
+    if (!(opts && opts.render === false) && current) SP.rerender();
+    return true;
+  };
   /** marks the user as signed in (login and verified registration both end here).
       A different account than the current one (a guest becoming one included) starts from a clean personal
       session: the previous person's recipient, personal ID, address, profile, receipt and recovery must not
       carry over (v2f-r1-01, REV2-01). The cart and its per-order choices stay. The same account signing in
       again keeps its recipient / address for the next order. Any pending registration ends here. */
   SP.signIn = function (phone) {
-    if (phone !== state.userPhone) {
+    // v4 finish r2: the session is bound to the account record (its uid); a record from an older build gets its uid now
+    var all = users(), rec = all[phone], uid = accountId(rec);
+    if (rec && typeof rec === 'object' && !rec.uid) { rec.uid = uid = uid || SP.uid(); saveUsers(all); }
+    if (phone !== state.userPhone || uid !== state.userUid) {
       state.delivery = deliveryDefaults();
       state.profile = null; state.order = null; state.recover = null; state.phoneChange = null;
       state.ui = { details: {}, payDetails: false };
     }
-    state.userPhone = phone; state.loginPhone = null; state.pendingReg = null;
+    state.userPhone = phone; state.userUid = uid || null; state.loginPhone = null; state.pendingReg = null;
     // v4: the account's stored names are its session profile (the delivery recipient prefill)
-    var u = profileOf(users()[phone]);
+    var u = profileOf(rec);
     if (!state.profile && (u.first || u.last)) state.profile = { first: u.first, last: u.last };
     SP.save();
   };
@@ -890,18 +968,20 @@
     processing: 'მუშავდება', ordered: 'შეკვეთილია', transit: 'გზაშია', warehouse: 'საწყობშია', customs: 'განბაჟება',
     ready: 'მზადაა გასატანად', courier: 'კურიერთანაა', delivered: 'ჩაბარდა'
   };
-  SP.FIRST_STATUS = 'processing';
+  SP.FIRST_STATUS = FIRST_STATUS;
   SP.DUE_LABEL = 'გადასახდელია';
   /** the 7 step keys of an order's timeline (pickup ends at "ready", courier at "courier") */
   SP.orderSteps = function (o) {
-    return ['processing', 'ordered', 'transit', 'warehouse', 'customs', o && o.delivery && o.delivery.method === 'courier' ? 'courier' : 'ready', 'delivered'];
+    return [FIRST_STATUS, 'ordered', 'transit', 'warehouse', 'customs', o && o.delivery && o.delivery.method === 'courier' ? 'courier' : 'ready', 'delivered'];
   };
   /** [{key, label, date|null, state:'done'|'current'|'todo'}]. An order stored by an older build has no
       'processing' step: it counts as done on the order date (v4) */
+  /** v4 finish r2: a known status key — an own key of SP.STATUS ('constructor', 'toString', '__proto__' are not) */
+  SP.isStatus = function (k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(SP.STATUS, k); };
   SP.orderTimeline = function (o) {
-    var steps = SP.orderSteps(o), cur = steps.indexOf(o.status), dates = {};
+    var steps = SP.orderSteps(o), cur = SP.isStatus(o.status) ? steps.indexOf(o.status) : -1, dates = {};
     (o.timeline || []).forEach(function (s) { if (s) dates[s.key] = s.date; });
-    if (!dates.processing && o.status !== 'processing') dates.processing = o.date || null;
+    if (!dates[FIRST_STATUS] && o.status !== FIRST_STATUS) dates[FIRST_STATUS] = o.date || null;
     if (cur < 0) cur = 0;
     return steps.map(function (k, i) {
       return { key: k, label: SP.STATUS[k], date: dates[k] || null,
@@ -944,7 +1024,7 @@
       payment is due (the list adds the 'გადასახდელია: N₾' badge, SP.DUE_LABEL) */
   SP.orderPill = function (o) {
     var kind = SP.orderDue(o).total > 0 ? 'due' : o.status === 'delivered' ? 'done' : 'progress';
-    return { kind: kind, label: SP.STATUS[o.status] };
+    return { kind: kind, label: SP.STATUS[SP.isStatus(o.status) ? o.status : FIRST_STATUS] };
   };
   /** instalment schedule → [{n, label:'1-ლი შენატანი', date, amount}] (first one month after the order date).
       The remainder is spread over the first instalments (+1₾ each), so every row is within 1₾ of the shown
@@ -968,18 +1048,26 @@
       its timeline (so every timeline starts with it). An unknown / missing status reads as 'processing'. */
   function withProcessing(o) {
     if (!o || typeof o !== 'object') return o;
-    if (SP.STATUS && !SP.STATUS[o.status]) o.status = 'processing';   // (SP.STATUS is not defined yet while the state loads)
+    // (SP.STATUS is not defined yet while the state loads; v4 finish r2: an own-key check — 'constructor' is unknown too)
+    if (SP.STATUS && !SP.isStatus(o.status)) o.status = FIRST_STATUS;
     var tl = Array.isArray(o.timeline) ? o.timeline.filter(function (s) { return s && typeof s === 'object'; }) : [];
-    var has = tl.some(function (s) { return s.key === 'processing'; });
-    if (!has) tl.unshift({ key: 'processing', date: o.date || (tl[0] && tl[0].date) || null });
+    var has = tl.some(function (s) { return s.key === FIRST_STATUS; });
+    if (!has) tl.unshift({ key: FIRST_STATUS, date: o.date || (tl[0] && tl[0].date) || null });
     o.timeline = tl;
     return o;
   }
+  /** v4 finish r2: whose orders an SP.orders call reads / writes — an explicit phone with an account record, else the
+      signed-in account's phone; null for a stale session (no record, or a different account under the number) */
+  function ownerPhone(phone) {
+    if (phone) return users()[phone] ? phone : null;
+    return sessionUser() ? state.userPhone : null;
+  }
   function sortOrders(list) { return list.slice().sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }); }
   SP.orders = {
-    /** the signed-in user's orders, newest first (the demo user gets the demo orders on first access) */
+    /** the signed-in user's orders, newest first (the demo user gets the demo orders on first access).
+        v4 r1: a phone with no account record has no orders (nothing is read or seeded for it) */
     list: function (phone) {
-      phone = phone || state.userPhone;
+      phone = ownerPhone(phone);
       if (!phone) return [];
       var all = ordersAll();
       if (!all[phone] && phone === SP.DEMO_USER.phone) { SP.orders.seedDemo(phone); all = ordersAll(); }
@@ -993,9 +1081,10 @@
         (REV2R3-01): the incoming order gets a free id instead (SP.orders.newId) and a console warning. "Different"
         = another creation key (o.uid, set by SP.createOrder; orders without one — the demo orders, older builds —
         count as the same order as each other). opts.replace: a deliberate replace of whatever holds the id (the QA
-        receipt ids: SP.QA_ORDER_ID, ?order=). Returns the saved order (its id may have changed). */
+        receipt ids: SP.QA_ORDER_ID, ?order=). Returns the saved order (its id may have changed).
+        v4 r1: nothing is written for a phone with no account record (a stale session, see SP.dropStaleSession) */
     save: function (o, phone, opts) {
-      phone = phone || state.userPhone;
+      phone = ownerPhone(phone);
       if (!phone || !o) return o;
       SP.orders.list(phone);   // the demo user's first order still gets the demo history next to it
       var all = ordersAll(), list = all[phone] || [];
@@ -1024,18 +1113,18 @@
     },
     /** replaces the user's orders with the two demo orders (#548210 delivered, #731954 in customs, 350₾ due) */
     seedDemo: function (phone) {
-      phone = phone || state.userPhone;
+      phone = ownerPhone(phone);
       if (!phone) return;
       var all = ordersAll(); all[phone] = demoOrders(); ordersSave(all);
     },
     remove: function (id, phone) {
-      phone = phone || state.userPhone;
+      phone = ownerPhone(phone);
       if (!phone) return;
       var all = ordersAll();
       all[phone] = (all[phone] || []).filter(function (o) { return o.id !== String(id); }); ordersSave(all);
     },
     clear: function (phone) {
-      phone = phone || state.userPhone;
+      phone = ownerPhone(phone);
       if (!phone) return;
       var all = ordersAll(); all[phone] = []; ordersSave(all);
     }
@@ -1080,7 +1169,7 @@
       delivery is SP.confirmedDelivery, the same one SP.totals priced (v2f-r3-02) */
   SP.createOrder = function (over) {
     over = over || {};
-    var id = over.id || SP.orders.newId(state.userPhone);
+    var id = over.id || SP.orders.newId();
     var date = over.date || SP.fmt.todayIso();
     var products = JSON.parse(JSON.stringify(state.products));
     products.forEach(function (p) { p.weightKg = SP.weightKg(p); });
@@ -1095,8 +1184,8 @@
       method: state.method, term: t.term, monthly: t.monthly, total: t.total, deliveryFee: t.delivery,
       delivery: dsnap,
       eta: SP.eta({ products: products, delivery: dsnap, date: date }),
-      // v4: every new order starts at 'processing' (მუშავდება)
-      status: 'processing', timeline: [{ key: 'processing', date: date }], deliveredAt: null,
+      // v4: every new order starts at SP.FIRST_STATUS 'processing' (მუშავდება)
+      status: FIRST_STATUS, timeline: [{ key: FIRST_STATUS, date: date }], deliveredAt: null,
       deferred: { weight: part(w, state.deferWeight), customs: part(c, state.deferCustoms) }
     };
     SP.save();
@@ -1106,6 +1195,9 @@
   /** the card payment's end of checkout: creates the order, then empties the cart and resets the per-order
       choices (term, method, defers, delivery.done) so Back from success cannot pay the same cart again */
   SP.completeCheckout = function (over) {
+    // v4 r1: a session whose account is gone (re-keyed in another tab) pays nothing: it is ended instead, and the
+    // guard re-routes (→ null; the caller stops)
+    if (SP.dropStaleSession()) return null;
     var o = SP.createOrder(over);
     state.products = []; state.deferWeight = true; state.deferCustoms = true; state.method = 'bog'; state.term = 4;
     state.ui = { details: {}, payDetails: false };
@@ -1289,7 +1381,7 @@
   /* ---- guards ---- */
   function guard(path, query, params) {
     query = query || {}; params = params || {};
-    var hasProducts = state.products.length > 0, authed = !!state.userPhone;
+    var hasProducts = state.products.length > 0, authed = SP.isAuthed();
     if (path === '/success') return state.order ? null : '/';
     // v4 profile: signed-in only
     if (path === '/profile') return authed ? null : SP.loginUrl('/profile');
@@ -1342,18 +1434,25 @@
       // the designed defaults; explicit weight/customs/method/term below still override (cs-r3-04)
       state.deferWeight = true; state.deferCustoms = true; state.method = 'bog'; state.term = 4;
       SP.api.ensureDemoUser();
-      state.userPhone = SP.DEMO_USER.phone;
+      // v4 finish r2 (V4F-REV2-04): a real sign-in to the demo account — coming from another account, that person's
+      // receipt, recipient / personal ID, recovery and pending phone change end here (SP.signIn); the session is bound
+      // to the demo record's uid like any other
+      SP.signIn(SP.DEMO_USER.phone);
       state.profile = { first: 'გიორგი', last: 'ბერიძე' };
       state.phoneChange = null;
       if (path === '/profile') {
         // v4: the demo account as seeded (password slicepay1, profile გიორგი / ბერიძე / giorgi@example.com); the QA
-        // phone-change number is free again, so the code step's 4821 always verifies
+        // phone-change number is freed so the code step's 4821 verifies — but only QA data is deleted (v4 r1): a
+        // 577 123 456 record goes only when it is the demo account re-keyed there (rec.qa); an account someone
+        // registered (or moved) there is kept, and the code step then opens the plain number form instead
         SP.api.resetDemoUser();
-        var us = users();
-        if (us[SP.QA_NEW_PHONE]) { delete us[SP.QA_NEW_PHONE]; saveUsers(us); }
-        var oa = ordersAll();
-        if (oa[SP.QA_NEW_PHONE]) { delete oa[SP.QA_NEW_PHONE]; ordersSave(oa); }
-        if (SP.api.remembered() === SP.QA_NEW_PHONE) SP.api.remember(null);
+        var us = users(), qaRec = us[SP.QA_NEW_PHONE];
+        if (!qaRec || qaRec.qa) {
+          if (qaRec) { delete us[SP.QA_NEW_PHONE]; saveUsers(us); }
+          var oa = ordersAll();
+          if (oa[SP.QA_NEW_PHONE]) { delete oa[SP.QA_NEW_PHONE]; ordersSave(oa); }
+          if (SP.api.remembered() === SP.QA_NEW_PHONE) SP.api.remember(null);
+        }
       }
       if (path === '/delivery') {
         // the delivery form as a new user sees it: pickup at Vake, names from the profile, ID empty
@@ -1369,11 +1468,15 @@
       }
       if (path === '/register/verify') {
         // a pending registration for 555 123 456 with code 4821 and no resend cooldown; not signed in yet
-        state.userPhone = null;
+        state.userPhone = null; state.userUid = null;
         state.pendingReg = { first: 'გიორგი', last: 'ბერიძე', phone: SP.DEMO_USER.phone, email: 'giorgi@example.com', rec: null,
           code: '4821', sentAt: 0, expiresAt: Date.now() + SP.VERIFY_TTL, next: null, demo: true };
       }
-      if (path === '/recover/code') state.recover = { phone: SP.DEMO_USER.phone, code: '4821', sentAt: 0 };
+      if (path === '/recover/code') {
+        // bound to the demo account's record and valid for SP.VERIFY_TTL, like a sent code (v4 finish r3)
+        state.recover = { phone: SP.DEMO_USER.phone, code: '4821', sentAt: 0, expiresAt: Date.now() + SP.VERIFY_TTL,
+          uid: accountId(users()[SP.DEMO_USER.phone]) };
+      }
       if (path === '/success') state.order = null;
       // my orders: the two demo orders (re-seeded on the orders screens so their QA states are reproducible)
       if (ordersRoute) SP.orders.seedDemo(SP.DEMO_USER.phone);
@@ -1399,7 +1502,7 @@
         ? { from: state.userPhone, phone: SP.QA_NEW_PHONE, code: '4821', sentAt: 0, expiresAt: Date.now() + SP.VERIFY_TTL, demo: true }
         : null;
     }
-    if (q.auth === '0') state.userPhone = null;
+    if (q.auth === '0') { state.userPhone = null; state.userUid = null; }
     if (q.details === '1' || q.details === '0') {
       var open = q.details === '1';
       if (path === '/cart') state.products.forEach(function (p) { state.ui.details[p.id] = open; });
@@ -1445,6 +1548,8 @@
     // QA params are applied once per history entry: whether this one is fresh is read before applyQA stamps it
     // (?info= below follows the same rule, v2f-r3-04)
     var fresh = !!isEntry && qaFresh();
+    // v4 r1: a session whose account record is gone (re-keyed / removed in another tab) is signed out first
+    SP.dropStaleSession({ render: false });
     if (isEntry) applyQA(r.path, r.query);
     var g = guard(r.path, r.query, hit.params);
     if (g) {
@@ -1588,6 +1693,17 @@
       if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
     }
     sentLog();   // a reload drops expired verification-log entries and re-arms the prune timer (REV2R3-02)
+    // v4 r1: a session left on a re-keyed account ends on boot. v4 finish r2: what keeps it out of an account that took
+    // its number later (another tab's boot re-created 555 123 456, or someone registered the freed number) is the
+    // record uid check in SP.isAuthed / SP.dropStaleSession — this boot-time order alone could not
+    SP.dropStaleSession({ render: false });
+    // the demo account (555 123 456 / slicepay1) always exists; its number is reserved (registration and a phone
+    // change refuse it), so a ?demo=1 URL never signs in to — or resets — someone else's account
+    SP.api.ensureDemoUser();
+    // another tab re-keyed / removed this tab's account: end the session right away (the guard re-routes)
+    window.addEventListener('storage', function (e) {
+      if (e.key === null || e.key === USERS_KEY) SP.dropStaleSession();
+    });
     if (state.order) withProcessing(state.order);   // v4 (the status check needs SP.STATUS, defined after the load)
     handle(true);
   };

@@ -1,5 +1,5 @@
 // ported from scratchpad tools/v2int_qaurls.js
-// v2 integration: every new QA URL at 320/428/1440/1920 — console errors, overflow, expected text
+// v2 integration (+ v4 profile): every QA URL at 320/428/1440/1920 — console errors, overflow, expected text
 const { chromium } = require('playwright');
 const { BASE, outDir } = require('../lib/env');
 const fs = require('fs');
@@ -19,6 +19,11 @@ const U = [
   ['order_548210', '#/orders/548210?demo=1', 'ჩაბარდა'],
   ['pay_order', '#/pay?demo=1&order=731954', 'გადასახდელი: 350₾'],
   ['landing_in', '#/?demo=1', 'ჩემი შეკვეთები'],
+  // v4 profile QA URLs
+  ['profile', '#/profile?demo=1', 'პირადი ინფორმაცია'],
+  ['profile_phone', '#/profile?demo=1&edit=phone', 'ახალი ტელეფონის ნომერი'],
+  ['profile_phone_code', '#/profile?demo=1&edit=phone&step=code', 'SMS კოდი გამოგზავნილია ნომერზე'],
+  ['profile_err', '#/profile?demo=1&err=1', 'სავალდებულო ველი'],
 ];
 (async () => {
   const b = await chromium.launch({ args: ['--disable-gpu'] });

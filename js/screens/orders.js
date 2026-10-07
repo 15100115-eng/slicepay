@@ -66,12 +66,12 @@
   function renderList() {
     var list = SP.orders.list();
     return '' +
-      '<div class="m-page ord-page">' + UI.dHead('/', { account: false, backAny: true }) +
+      '<div class="m-page ord-page">' + UI.dHead('/', { current: 'orders', backAny: true }) +   // v4 §B: both account links; ჩემი შეკვეთები marked current (as the profile marks itself)
         '<main class="ord">' +
           '<div class="ord-top">' +
             '<h1 class="t-h1 ord-top__h">ჩემი შეკვეთები</h1>' +
             // v4: logout moved to the profile page; the list heading links there instead (V4_SPEC §B entry points)
-            '<a class="link t-body ord-top__out" href="#/profile" data-acct="profile">' + UI.PROFILE_LABEL + '</a>' +
+            '<a class="link t-body ord-top__out only-m" href="#/profile" data-acct="profile">' + UI.PROFILE_LABEL + '</a>' +
           '</div>' +
           (list.length ? '<ul class="ord-list" role="list">' + list.map(card).join('') + '</ul>' : empty()) +
         '</main>' +
@@ -182,7 +182,7 @@
     // 'დარჩენილი გადასახდელი' leads only while money is (or may still be) due; once settled it goes last
     var d = SP.orderDue(o), dueFirst = d.total > 0 || d.pending, due = dueSection(o);
     return '' +
-      '<div class="m-page ord-page ord-page--detail">' + UI.dHead('/orders', { account: false }) +
+      '<div class="m-page ord-page ord-page--detail">' + UI.dHead('/orders') +   // v4 §B: the same signed-in inner header as every other screen (პროფილი · ჩემი შეკვეთები, neither current)
         '<main class="ord">' +
           '<div class="ord-top ord-top--detail">' +
             '<h1 class="t-h1 ord-top__h">შეკვეთა #' + esc(o.id) + '</h1>' +

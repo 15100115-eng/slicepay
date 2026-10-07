@@ -118,30 +118,33 @@
      ------------------------------------------------------------------ */
   /** desktop header: logo + optional back link + the account links top-right while signed in.
       v4: two purple links 'პროფილი' · 'ჩემი შეკვეთები' (.acct-nav); 'ჩემი შეკვეთები' keeps the right edge.
-      opts.account: true / undefined = both links; 'profile' or 'orders' = only that one (e.g. the profile page
-      shows only 'ჩემი შეკვეთები'); false = none (the orders screens). {backAny:true} makes the back link return
-      to the previous screen when there is one (else backTo) */
+      Every screen uses this: cart, delivery, payment, pay, success, profile, orders list, order detail, and the
+      auth screens (no links while signed out, since the nav renders only when SP.isAuthed(); a signed-in #/recover
+      shows both). v4 finish r2: the unused one-link / no-link variants (opts.account 'profile' | 'orders' | false)
+      are gone — signed in, it is always both links. opts.current: 'profile' | 'orders' marks that link as the page
+      you are on (aria-current="page": black, no underline; the profile page and the orders list). The orders list's
+      heading-row პროფილი link is mobile-only, so desktop shows პროფილი once (here).
+      {backAny:true} makes the back link return to the previous screen when there is one (else backTo) */
   UI.dHead = function (backTo, opts) {
     opts = opts || {};
-    var acct = opts.account === undefined ? true : opts.account;
     return '<header class="d-head container only-d">' +
       (backTo ? '<a class="back" href="#' + esc(backTo) + '" data-back="' + esc(backTo) + '"' + (opts.backAny ? ' data-back-any' : '') + '>' + UI.icon('arrow-left') + '<span>უკან დაბრუნება</span></a>' : '') +
       '<img class="logo" src="assets/icons/logo-color.svg" width="113" height="76" alt="SlicePay">' +
-      (acct !== false && SP.isAuthed() ? UI.accountNav(acct === true ? null : acct) : '') +
+      (SP.isAuthed() ? UI.accountNav(opts.current) : '') +
       '</header>';
   };
   UI.PROFILE_LABEL = 'პროფილი';
-  /** v4: the desktop header's account links (signed in): 'პროფილი' · 'ჩემი შეკვეთები'. only: 'profile' | 'orders'
-      renders just that link. Each is an .acct-link (--profile / --orders) with data-acct="profile|orders" */
-  UI.accountNav = function (only) {
-    var links = [];
-    if (only !== 'orders') links.push(UI.profileLink());
-    if (only !== 'profile') links.push(UI.accountLink());
+  /** v4: the desktop header's account links (signed in): 'პროფილი' · 'ჩემი შეკვეთები'. Each is an .acct-link
+      (--profile / --orders) with data-acct="profile|orders". current: 'profile' | 'orders' — that link gets
+      aria-current="page" (v4 r1). v4 finish r2: the unused `only` argument is gone (always both links) */
+  UI.accountNav = function (current) {
+    function cur(html, key) { return current === key ? html.replace('<a ', '<a aria-current="page" ') : html; }
+    var links = [cur(UI.profileLink(), 'profile'), cur(UI.accountLink(), 'orders')];
     return '<nav class="acct-nav" aria-label="ანგარიში">' + links.join('<span class="acct-nav__sep" aria-hidden="true">·</span>') + '</nav>';
   };
   /** v4: the purple 'პროფილი' link (#/profile) */
-  UI.profileLink = function (cls) {
-    return '<a class="acct-link acct-link--profile' + (cls ? ' ' + cls : '') + '" href="#/profile" data-acct="profile"><span>' + UI.PROFILE_LABEL + '</span></a>';
+  UI.profileLink = function () {
+    return '<a class="acct-link acct-link--profile" href="#/profile" data-acct="profile"><span>' + UI.PROFILE_LABEL + '</span></a>';
   };
   /** "ჩემი შეკვეთები" (signed in) / "შესვლა" (→ login, then my orders).
       variant 'light' = the landing's white 16 px link with a user icon; default = the purple header link

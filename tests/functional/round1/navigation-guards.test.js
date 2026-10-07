@@ -103,7 +103,17 @@ const L = require('../../lib/harness');
       }
       lg.info('desktop header account link (signed in):', JSON.stringify(where));
       lg.check('header link on cart/delivery/payment/pay/success, purple', ['#/cart?demo=1', '#/delivery?demo=1', '#/payment?demo=1', '#/pay?demo=1', '#/success?demo=1'].every(h => where[h] === 'ჩემი შეკვეთები|rgb(94, 52, 236)|პროფილი'), where);
-      lg.check('no header account link on orders screens', !where['#/orders?demo=1'] && !where['#/orders/731954?demo=1']);
+      // v4 header: both account links on every signed-in inner header; on the orders list ჩემი შეკვეთები is the current page
+      // (aria-current="page", black like the profile page's own link) and the list heading has no second პროფილი on desktop
+      const hdr = async () => p.evaluate(() => [...document.querySelectorAll('.d-head .acct-link')].filter(a => a.getClientRects().length).map(a => a.className + '|' + a.textContent + '|' + a.getAttribute('href') + '|' + (a.getAttribute('aria-current') || '-') + '|' + getComputedStyle(a).color));
+      await p.goto(L.BASE + '#/orders?demo=1'); await L.sleep(250); await p.mouse.move(700, 600); await L.sleep(50);
+      const lst = await hdr();
+      lg.check('orders list: header პროფილი (purple) · ჩემი შეკვეთები (aria-current=page, black)', lst.join(' / ') === 'acct-link acct-link--profile|პროფილი|#/profile|-|rgb(94, 52, 236) / acct-link acct-link--orders|ჩემი შეკვეთები|#/orders|page|rgb(0, 0, 0)', lst);
+      lg.check('orders list: პროფილი visible once (heading-row link is mobile-only)', (await p.evaluate(() => [...document.querySelectorAll('#app a')].filter(a => a.getClientRects().length && a.textContent.trim() === 'პროფილი').length)) === 1);
+      // order detail: the same header as every other inner screen (both links, neither current)
+      await p.goto(L.BASE + '#/orders/731954?demo=1'); await L.sleep(250); await p.mouse.move(700, 600); await L.sleep(50);
+      const det = await hdr();
+      lg.check('order detail: header პროფილი · ჩემი შეკვეთები (both purple, none current)', det.join(' / ') === 'acct-link acct-link--profile|პროფილი|#/profile|-|rgb(94, 52, 236) / acct-link acct-link--orders|ჩემი შეკვეთები|#/orders|-|rgb(94, 52, 236)', det);
       await p.goto(L.BASE + '#/cart?demo=1&auth=0'); await L.sleep(250);
       lg.check('signed out: no header account link', !(await p.$('.d-head .acct-link')));
       // header link from delivery -> orders -> back (header back link) -> delivery

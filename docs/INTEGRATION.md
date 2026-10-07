@@ -83,8 +83,8 @@ field do `var d = SP.state().delivery; d.city = 'ბათუმი'; SP.save();
   delivery: { method:'pickup'|'courier', branchId, branchName, branchAddr, city, address, note,
               recipient: 'გიორგი ბერიძე', pidMasked: '********345', fee },
   eta: { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' },
-  status: 'ordered'|'transit'|'warehouse'|'customs'|'ready'|'courier'|'delivered',
-  timeline: [{ key:'ordered', date:'2026-09-27' }, ...],   // steps reached so far, with dates
+  status: 'processing'|'ordered'|'transit'|'warehouse'|'customs'|'ready'|'courier'|'delivered',   // v4: new orders start at 'processing'
+  timeline: [{ key:'processing', date:'2026-09-27' }, { key:'ordered', date:'2026-09-27' }, ...],   // steps reached so far, with dates
   deliveredAt: 'YYYY-MM-DD'|null,
   deferred: {
     weight:  { est:100, actual:112|null, prepaid:false, paid:false, paidAt? } | null,   // null = part is 0
@@ -176,8 +176,8 @@ card data, and the personal ID only as `pidMasked`.
 | `SP.orders.get(id)` | An order or `null` |
 | `SP.orders.save(order)` | Upsert by id (also refreshes `state.order` when it is the same id) |
 | `SP.orders.seedDemo(phone?)`, `.clear(phone?)`, `.remove(id)` | QA helpers |
-| `SP.STATUS` | `{ordered:'შეკვეთილია', transit:'გზაშია', warehouse:'საწყობშია', customs:'განბაჟება', ready:'მზადაა გასატანად', courier:'კურიერთანაა', delivered:'ჩაბარდა'}` |
-| `SP.orderSteps(o)` | The 6 step keys (pickup ends in `ready`, courier in `courier`) |
+| `SP.STATUS` | `{processing:'მუშავდება', ordered:'შეკვეთილია', transit:'გზაშია', warehouse:'საწყობშია', customs:'განბაჟება', ready:'მზადაა გასატანად', courier:'კურიერთანაა', delivered:'ჩაბარდა'}`. *(v4: `processing` is the first key, `SP.FIRST_STATUS`; see v4 changes §A)* |
+| `SP.orderSteps(o)` | The 7 step keys, starting with `processing` (pickup ends in `ready`, courier in `courier`). *(v4; was 6 before)* |
 | `SP.orderTimeline(o)` | `[{key, label, date|null, state:'done'|'current'|'todo'}]` |
 | `SP.orderDue(o)` | `{weight, customs, total, pending, deferred}`. `weight` and `customs` are `SP.partDue` objects or null. `total` = amount payable now (350 for #731954). `pending` = a deferred amount is still unknown (`განისაზღვრება ამანათის ჩამოსვლისას`) |
 | `SP.partDue(part)` | `{est, actual, prepaid, paid, due, refund, pending}`. **Row rendering:**<br>• `paid` → `გადახდილია`<br>• `pending` → `დაახ. 100₾` + `განისაზღვრება ამანათის ჩამოსვლისას`<br>• otherwise → `დაახ. 100₾` → `ფაქტობრივი 112₾` |
@@ -481,12 +481,17 @@ User record (localStorage `slicepay:v1:users`, keyed by the 9-digit phone):
 ```
 
 - **Registration** (`SP.api.verify`) stores the pending registration's `first`, `last` and `email` in the new record.
-  The legacy `SP.api.register(u)` stores them too.
-- **Password recovery** (`SP.api.resetPassword`) keeps the profile.
+  *(v4 r1: the unused legacy `SP.api.register(u)` is removed; registration is `startRegistration` → `verify` only.
+  A new account starts with no orders: anything stored under a free number is dropped, never inherited.)*
+- **Password recovery** (`SP.api.resetPassword`) keeps the profile. *(v4 finish r3: the pending recovery is bound to
+  the account record the code was sent for and expires after `SP.VERIFY_TTL` — see "v4 finish round 3" below.)*
 - **The old PII strip in `users()` is removed** (it deleted first/last/email on every read; R2-19 is superseded by V4_SPEC §B).
 - **Demo account** 555 123 456 / `slicepay1`: `SP.DEMO_PROFILE = {first:'გიორგი', last:'ბერიძე', email:'giorgi@example.com'}`.
   `SP.api.ensureDemoUser()` adds that profile to a demo record that has none (it never overwrites an edited one).
   `SP.api.resetDemoUser()` restores the full seed (password and profile), which `#/profile?demo=1` uses.
+  *(v4 r1)* `SP.start()` calls `ensureDemoUser()` on every boot, so the demo account exists in a fresh browser, and the
+  number is **reserved**: `startRegistration` / `verify` and `startPhoneChange` / `verifyPhoneChange` refuse
+  555 123 456 (`'exists'`). A `?demo=1` URL can therefore never sign in to, or reset, a real user's account.
 - **`SP.signIn(phone)`** sets `state.profile = {first, last}` from the account record when the session has no profile
   yet. So after a plain login, the delivery recipient prefill works (it used to be empty after a sign-out).
 - New state key `phoneChange` (sessionStorage, session only): `null | {from, phone, code, sentAt, expiresAt, demo}`.
@@ -500,12 +505,12 @@ ready-to-show copy.
 | Call | Returns / effect |
 |---|---|
 | `SP.api.getProfile()` | `{phone, first, last, email}` of the signed-in account, or `null`. Names fall back to `state.profile` for an account stored by an older build |
-| `SP.api.updateProfile({first, last, email})` | The register rules: names required (trimmed) → `SP.msg.required`; e-mail required → `SP.msg.required`, invalid → `SP.msg.email`. Result `{ok:false, error:'invalid', errors:{first?, last?, email?}}` or `{ok:true, profile}`. On success it saves the record and `state.profile = {first, last}`. Then show `UI.toast(SP.toastMsg.profileSaved)` (`ცვლილებები შენახულია`) |
-| `SP.api.changePassword({current, next, repeat})` | `{ok:true}` or `{ok:false, error:<first code>, errors:{current?, next?, repeat?}}`.<br>• `current`: empty → `required`; wrong → `SP.msg.passCurrent` `მიმდინარე პაროლი არასწორია`.<br>• `next`: empty → `required`; < 8 → `SP.msg.password` `მინიმუმ 8 სიმბოლო`; same as the current → `SP.msg.passSame` `ახალი პაროლი ემთხვევა მიმდინარეს`.<br>• `repeat`: empty → `required`; different → `SP.msg.match` `პაროლები არ ემთხვევა`.<br>Every field is checked, so all errors show at once. On success: a new salted record (profile kept). Then clear the fields and `UI.toast(SP.toastMsg.passwordChanged)` (`პაროლი შეიცვალა`) |
+| `SP.api.updateProfile({first, last, email})` | The register rules: names required (trimmed) → `SP.msg.required`; e-mail required → `SP.msg.required`, invalid → `SP.msg.email`. Result `{ok:false, error:'invalid', errors:{first?, last?, email?}}` or `{ok:true, profile}`. On success it saves the record and `state.profile = {first, last}`. Then show `UI.toast(SP.toastMsg.profileSaved)` (`ცვლილებები შენახულია`).<br>*(v4 finish r2)* `profile.js` sends a **patch**: the fields edited since the last load / save, the rest from a fresh `getProfile()`, so concurrent saves from two tabs do not undo each other. A backend port should keep this patch behaviour (or accept partial updates) |
+| `SP.api.changePassword({current, next, repeat})` | `{ok:true}` or `{ok:false, error:<first code>, errors:{current?, next?, repeat?}}`.<br>• `current`: empty → `required`; wrong → `SP.msg.passCurrent` `მიმდინარე პაროლი არასწორია`.<br>• `next`: empty → `required`; < 8 → `SP.msg.password` `მინიმუმ 8 სიმბოლო`; same as the current → `SP.msg.passSame` `ახალი პაროლი ემთხვევა მიმდინარეს` — **only checked once `current` is verified** (v4 r1: with an empty or wrong current password the form must not tell whether the new one equals the real password; a backend port must keep this order).<br>• `repeat`: empty → `required`; different → `SP.msg.match` `პაროლები არ ემთხვევა`.<br>Every field is checked, so all errors show at once. On success: a new salted record (profile kept). Then clear the fields and `UI.toast(SP.toastMsg.passwordChanged)` (`პაროლი შეიცვალა`) |
 | `SP.api.startPhoneChange(raw)` | `{ok:true, code, phone}` → `UI.codeToast(r.code)` and show the code step.<br>`{ok:false, error, message}`:<br>• `'required'` (`სავალდებულო ველი`)<br>• `'format'` (`SP.msg.phone` `შეიყვანეთ ნომერი ფორმატით 5XX XXX XXX`, the existing phone message the spec says to reuse)<br>• `'same'` (`SP.msg.phoneSame` `ახალი ნომერი ემთხვევა მიმდინარეს`)<br>• `'exists'` (`SP.msg.phoneTaken` `ეს ნომერი უკვე დარეგისტრირებულია`)<br>It reuses the registration machinery: the per-number send log (`slicepay.verifySent`), the 30 s cooldown (a number sent a code inside its cooldown gets the same code back) and the 5 min expiry. The QA seed for the same number keeps 4821 |
 | `SP.phoneChangeCooldown()` | Seconds before a resend is allowed (0 = now). Drive the link with `UI.cooldownLink(btn, 'კოდის ხელახლა გამოგზავნა', SP.phoneChangeCooldown)` and call `.stop()` on unmount |
-| `SP.api.resendPhoneChange()` | `{ok:true, code}` → `UI.codeToast`, then `cooldown.refresh()`. Or `{ok:false, error:'cooldown', left}` or `{ok:false, error:'none'}` |
-| `SP.api.verifyPhoneChange(code)` | `{ok:true, phone, old}` → `UI.toast(SP.toastMsg.phoneChanged)` (`ტელეფონის ნომერი შეიცვალა`) and re-render.<br>Errors (`{ok:false, error, message}`):<br>• `'format'` → `SP.msg.code`<br>• `'wrong'` → `კოდი არასწორია`<br>• `'expired'` → `კოდს ვადა გაუვიდა, მოითხოვეთ ახალი`<br>• `'exists'` (the number was registered meanwhile) → `phoneTaken`<br>• `'none'` (no pending change: close the form)<br>**On success the account is re-keyed:** the users store (`all[new] = all[old]`, old key deleted, so the old number is free), the user's orders (`slicepay:v1:orders[new]`; the demo account's lazily seeded history is materialised first, so it moves too), remember-me (when it held the old number), and the session (`state.userPhone`, `loginPhone`). `state.phoneChange` is cleared |
+| `SP.api.resendPhoneChange()` | `{ok:true, code}` → `UI.codeToast`, then `cooldown.refresh()`. Or `{ok:false, error:'cooldown', left}` or `{ok:false, error:'none'}`. *(v4 finish r2)* `{ok:false, error:'exists', message: SP.msg.phoneTaken}` when the new number was registered meanwhile (no code is sent; `profile.js` shows the message on `#pf-code`), and `{ok:false, error:'auth', message:''}` without a valid session |
+| `SP.api.verifyPhoneChange(code)` | `{ok:true, phone, old}` → `UI.toast(SP.toastMsg.phoneChanged)` (`ტელეფონის ნომერი შეიცვალა`) and re-render.<br>Errors (`{ok:false, error, message}`):<br>• `'format'` → `SP.msg.code`<br>• `'wrong'` → `კოდი არასწორია`<br>• `'expired'` → `კოდს ვადა გაუვიდა, მოითხოვეთ ახალი`<br>• `'exists'` (the number was registered meanwhile) → `phoneTaken`<br>• `'none'` (no pending change: close the form)<br>• `'auth'` *(v4 finish r2)*: no valid session, or the re-key could not happen because the account is gone (→ `SP.dropStaleSession`)<br>**On success the account is re-keyed:** the users store (`all[new] = all[old]`, old key deleted, so the old number is free), the user's orders (`slicepay:v1:orders[new]`; the demo account's lazily seeded history is materialised first, so it moves too), remember-me (when it held the old number), and the session (`state.userPhone`, `loginPhone`). `state.phoneChange` is cleared |
 | `SP.api.cancelPhoneChange()` | Drops the pending change (`გაუქმება`) |
 | `SP.recipientPrefill(st?)` | `{first, last}` for the delivery recipient: the session's `state.delivery.first/last` win when non-empty (typed or confirmed in this session), else the account profile (`getProfile`, else `state.profile`) |
 | `SP.msg` | New: `phoneSame`, `phoneTaken`, `passCurrent`, `passSame` |
@@ -522,7 +527,7 @@ Body background: `data-screen="profile"` is white below 900 px and `#f4f4f4` on 
 
 | Param | Effect (applied once per history entry, like every QA param) |
 |---|---|
-| `#/profile?demo=1` | The usual `demo=1` seed (demo user signed in, Nike cart, profile `გიორგი ბერიძე`), plus `SP.api.resetDemoUser()`: password `slicepay1`, profile `გიორგი` / `ბერიძე` / `giorgi@example.com`. The QA number 577 123 456 is freed (its user, orders and remember-me are removed). `state.phoneChange` is cleared |
+| `#/profile?demo=1` | The usual `demo=1` seed (demo user signed in, Nike cart, profile `გიორგი ბერიძე`), plus `SP.api.resetDemoUser()`: password `slicepay1`, profile `გიორგი` / `ბერიძე` / `giorgi@example.com`. The QA number 577 123 456 is freed (its user, orders and remember-me are removed) **only when that record is QA data** (v4 r1: `rec.qa`, set when the demo account is re-keyed; a real account registered or moved to 577 123 456 is kept, and `&step=code` then opens the plain number form). `state.phoneChange` is cleared |
 | `&edit=phone` | Core clears `state.phoneChange`. **The screen opens the phone form when `ctx.query.edit === 'phone'` on entry.** Read it in `render`, which runs before `mount` |
 | `&edit=phone&step=code` | Core seeds `state.phoneChange = {from:<user>, phone:'577123456', code:'4821', sentAt:0 (no cooldown), expiresAt:+5 min, demo:true}`. The screen shows the code step whenever `state.phoneChange` is pending for the signed-in user (also after a reload). 4821 verifies and re-keys the demo account to 577 123 456; the next `?demo=1` restores 555 123 456 |
 | `&err=1` | The screen shows validation errors (the placeholder: empty name, empty password fields, the new-number required message, `კოდი არასწორია` on the code step) |
@@ -531,17 +536,17 @@ Body background: `data-screen="profile"` is white below 900 px and `#f4f4f4` on 
 
 | Item | v4 |
 |---|---|
-| `UI.dHead(backTo, opts)` | While signed in the header's right side shows **two links `პროფილი` · `ჩემი შეკვეთები`** in `<nav class="acct-nav" aria-label="ანგარიში">`. `ჩემი შეკვეთები` keeps its exact old place (right edge, top 22); `პროფილი` + a #666 `·` sit to its left (gap 8).<br>`opts.account`: `true`/omitted = both; `'orders'` = only `ჩემი შეკვეთები` (**use on the profile page**); `'profile'` = only `პროფილი`; `false` = none (the orders screens keep `false`) |
-| `UI.accountNav(only?)`, `UI.profileLink(cls?)` | The header nav and its purple `პროფილი` link (`.acct-link.acct-link--profile`, `href="#/profile"`, `data-acct="profile"`). The orders link is now `.acct-link.acct-link--orders` with `data-acct="orders"` (the landing's light variant too). **Tests that read `.d-head .acct-link` should read `.d-head .acct-link--orders`** |
+| `UI.dHead(backTo, opts)` | While signed in the header's right side shows **two links `პროფილი` · `ჩემი შეკვეთები`** in `<nav class="acct-nav" aria-label="ანგარიში">`. `ჩემი შეკვეთები` keeps its exact old place (right edge, top 22); `პროფილი` + a #666 `·` sit to its left (gap 8).<br>`opts.account`: `true`/omitted = both (**every inner header**: cart, delivery, payment, pay, success, profile, orders list, order detail, and the auth screens when signed in); `'profile'` / `'orders'` = only that link; `false` = none. **No screen passes `'profile'`, `'orders'` or `false` any more** (v4 finish); *(v4 finish r2: those variants are removed — signed in, `dHead` always renders both links)*: the auth screens call `dHead` with the default too, and show no links simply because the nav renders only while signed in. `opts.current`: `'profile'`/`'orders'` marks that link `aria-current="page"` (black, no underline): the profile page passes `'profile'`, the orders list `'orders'`. *(v4 r1 had the orders list with none and the order detail with only `პროფილი`.)*<br>**Header composition per screen (desktop):** signed in — cart / delivery / payment / pay / success / order detail / signed-in auth (e.g. `#/recover` reached by URL or history) → `პროფილი · ჩემი შეკვეთები`; profile → `პროფილი` (current) `· ჩემი შეკვეთები`; orders list → `პროფილი · ჩემი შეკვეთები` (current). Signed out (login, register, recover, guarded redirects) → none. The orders list's heading-row `პროფილი` link (`.ord-top__out`) is **mobile only** (`only-m`), so desktop never shows `პროფილი` twice |
+| `UI.accountNav(current?)` *(v4 finish r2: was `(only?, current?)`)*, `UI.profileLink()` | The header nav and its purple `პროფილი` link (`.acct-link.acct-link--profile`, `href="#/profile"`, `data-acct="profile"`). The orders link is now `.acct-link.acct-link--orders` with `data-acct="orders"` (the landing's light variant too). **Tests that read `.d-head .acct-link` should read `.d-head .acct-link--orders`** |
 | `UI.PROFILE_LABEL` | `'პროფილი'` |
 | `UI.T` / `UI.Tm` | New keys: `save` ᲨᲔᲜᲐᲮᲕᲐ, `changePassword` ᲞᲐᲠᲝᲚᲘᲡ ᲨᲔᲪᲕᲚᲐ, `logout` ᲒᲐᲡᲕᲚᲐ. The phone change reuses `sendCode` ᲙᲝᲓᲘᲡ ᲒᲐᲛᲝᲒᲖᲐᲕᲜᲐ and `confirm` ᲓᲐᲓᲐᲡᲢᲣᲠᲔᲑᲐ; the bar uses `back` ᲣᲙᲐᲜ |
-| CSS | `.acct-nav`, `.acct-nav .acct-link{position:static}`, `.acct-nav__sep`, `.acct-link[aria-current="page"]` (black, no underline, for a "you are here" link if wanted). `body[data-screen="profile"]` backgrounds. Existing: `.card`, `.btn`, `.btn[aria-disabled="true"]` (the "disabled-look" save button), `.btn--secondary` (outline logout), `.link`, `UI.field({type:'password', eye:true})` (eye toggles are delegated) |
+| CSS | `.acct-nav`, `.acct-nav .acct-link{position:static}`, `.acct-nav__sep`, `.acct-link[aria-current="page"]` (black, no underline: the profile page's own `პროფილი` link, v4 r1). `body[data-screen="profile"]` backgrounds. Existing: `.card`, `.btn`, `.btn[aria-disabled="true"]` (the "disabled-look" save button), `.btn--secondary` (outline logout), `.link`, `UI.field({type:'password', eye:true})` (eye toggles are delegated) |
 
 ### What each engineer must do
 
 **Profile (`profile.js`, `profile.css`, replace the placeholders).**
 1. Use the layout from V4_SPEC §B.
-   - Desktop: `UI.dHead('/', {account:'orders', backAny:true})` and the centred 645 px column like orders.
+   - Desktop: `UI.dHead('/', {account:'orders', backAny:true})` and the centred 645 px column like orders. *(Superseded in v4 r1: `{current:'profile', backAny:true}`, both links.)*
    - Mobile: a white page with `UI.mBar({label: UI.mt('back'), back:'/', any:true}, null)`.
    - Heading `პროფილი`, three `.card` sections, then the outline `ᲒᲐᲡᲕᲚᲐ` (`UI.logout()`).
 2. **Personal info:**
@@ -560,7 +565,7 @@ Body background: `data-screen="profile"` is white below 900 px and `#f4f4f4` on 
    - Button `UI.mt('changePassword')`; errors come from `changePassword().errors`.
    - On success: clear the fields and show the toast.
 5. **QA params:** `edit`, `step`, `err` as above.
-6. **Keep these ids** (`tools/v4core_verify.js` uses them):
+6. **Keep these ids** (`tests/e2e/profile.test.js` uses them; `tools/v4core_verify.js` was the build-session check it replaced):
    - info: `pf-first`, `pf-last`, `pf-email`, `pf-save`
    - phone: `pf-phone-open`, `pf-phone-new`, `pf-send`, `pf-code`, `pf-resend`, `pf-confirm`, `pf-cancel`, and the current number in `.prof-phone__v`
    - password: `pw-current`, `pw-new`, `pw-repeat`, `pw-submit`
@@ -570,9 +575,9 @@ Body background: `data-screen="profile"` is white below 900 px and `#f4f4f4` on 
 
 **Orders (`orders.js`, `orders.css`).**
 1. **List heading:** replace `<button … data-action="logout">გასვლა</button>` with a link to the profile, for example `<a class="link t-body ord-top__out" href="#/profile" data-acct="profile">` + `UI.PROFILE_LABEL` + `</a>`. Logout now lives on the profile page. Don't use `UI.profileLink()` here: `.acct-link` is absolutely positioned outside `.acct-nav`.
-2. Keep `UI.dHead(…, {account:false})` on the orders screens (V4_SPEC keeps the header links for the other inner screens).
+2. Keep `UI.dHead(…, {account:false})` on the orders screens (V4_SPEC keeps the header links for the other inner screens). *(v4 r1: the order detail now uses `{account:'profile'}`; the list keeps `false`.)* *(v4 finish: superseded — both orders screens use the default header with both links; the list passes `{current:'orders'}` and its heading-row link is `only-m`.)*
 3. **Status:** nothing to code. Check the detail timeline with 7 steps (`მუშავდება` first) at 320–1440, and the new-order pill `მუშავდება`.
-4. **Stale tests:** `v2f_users.js` "logout link გასვლა" and `v2f_kb.js` "Tab to გასვლა" will need updating with this change.
+4. **Stale tests:** `v2f_users.js` "logout link გასვლა" and `v2f_kb.js` "Tab to გასვლა" (build-session names; now `tests/functional/round1/users-storage.test.js` and `keyboard.test.js`) will need updating with this change.
 
 **Delivery (`delivery.js`).** The recipient prefill already works without a change, because `SP.signIn` now fills `state.profile` from the account. To follow the spec rule exactly ("session values win, else the profile"), replace the local `prefill(st)` names with `SP.recipientPrefill(st)` (keep the local `pid` digits handling).
 
@@ -584,9 +589,36 @@ All three screen engineers landed; the contract above is implemented as written,
 
 | Area | Final v4 behaviour |
 |---|---|
-| Profile (`profile.js`, `profile.css`) | The real `#/profile` screen replaces the core placeholders. Desktop: `UI.dHead('/', {account:'orders', backAny:true})`, #f4f4f4, the orders' centred 645 px column. Mobile: white page, bar `ᲣᲙᲐᲜ` only. Three white cards (personal info, phone, password) + the outline `ᲒᲐᲡᲕᲚᲐ` (`[data-action="logout"]`). First/last name side by side, stacked below a 300 px card. Each section is its own `<form>` (Enter submits only that section). The toast sits at the top on phones (top 12, taps pass through), and the control being edited is kept clear of it (`scroll-margin-top: 72` + `scrollIntoView({block:'nearest'})`). Phone success redraws only the phone section, so unsaved personal-info edits survive. The resend countdown stops on unmount. Ids as listed above |
-| Orders (`orders.js`) | The list heading link is `<a class="link t-body ord-top__out" href="#/profile" data-acct="profile">პროფილი</a>` (same box as the old `გასვლა`). **The orders list has no logout control any more.** Pill and 7-step timeline come from `UI.statusPill` / `UI.timeline` unchanged |
+| Profile (`profile.js`, `profile.css`) | The real `#/profile` screen replaces the core placeholders. Desktop: `UI.dHead('/', {current:'profile', backAny:true})` *(v4 r1: both header links, `პროფილი` marked current; was `{account:'orders'}`)*, #f4f4f4, the orders' centred 645 px column. Mobile: white page, bar `ᲣᲙᲐᲜ` only. Three white cards (personal info, phone, password) + the outline `ᲒᲐᲡᲕᲚᲐ` (`[data-action="logout"]`). First/last name side by side, stacked below a 300 px card. Each section is its own `<form>` (Enter submits only that section). The toast sits at the top on phones (top 22, band 22–66, as on delivery): the plain confirmations let taps through, the test-code toast (`.toast--code`) takes taps (select / copy the code, tap to dismiss). The edited card is kept clear of it: `scroll-margin-top: 76` on `.prof-sec` and the controls, plus `scrollIntoView({block:'nearest'})` on the section, falling back to the control itself when the card is taller than the room below the toast. A personal-info save sends only the fields edited since the last load or save, merged onto a fresh `SP.api.getProfile()`, and the screen follows the `storage` event for `slicepay:v1:users` while mounted (un-edited fields and the ᲨᲔᲜᲐᲮᲕᲐ baseline follow another tab's save), so a save in one tab no longer undoes another tab's change. Phone success redraws only the phone section, so unsaved personal-info edits survive. The resend countdown stops on unmount. Ids as listed above |
+| Orders (`orders.js`) | The list heading link is `<a class="link t-body ord-top__out only-m" href="#/profile" data-acct="profile">პროფილი</a>` (same box as the old `გასვლა`; mobile only since v4 finish — desktop uses the header's `პროფილი`). **The orders list has no logout control any more.** Pill and 7-step timeline come from `UI.statusPill` / `UI.timeline` unchanged |
 | Delivery (`delivery.js`) | `prefill()` uses `SP.recipientPrefill(st)`; the personal ID is never taken from the profile |
 | Core QA seed (`#/profile?demo=1`) | The `demo=1` seed no longer writes `გიორგი` / `ბერიძე` into `state.delivery` on `/profile`: the delivery form is the fresh default (not done, no names). So a profile name edit made on `#/profile?demo=1` reaches the delivery step through `SP.recipientPrefill` (before, the seeded names counted as typed in this session and hid the edit). Every other route keeps the old seed (completed pickup delivery with the demo names, so the payment / success parity stays 600₾ / 150₾). A *reload* of a `?demo=1` URL re-applies the seed (QA params are always fresh on boot), so test flows move to a clean `#/profile` entry before editing |
 | Tests | Logout is tested on `#/profile` (`L.logout(p, viaOrders)` in `tests/lib/harness.js`). Header-link checks read `.d-head .acct-link--orders` / `--profile`. New suites: `tests/e2e/profile.test.js`, `tests/e2e/status.test.js` |
+| Orders detail header (v4 r1) | `UI.dHead('/orders', {account:'profile'})`: exactly one header link, `პროფილი`. The list keeps `{account:false}`. *(Superseded in v4 finish: both screens show both links; see the `UI.dHead` row above.)* |
 
+### v4 round 1 (core fixes)
+
+| Area | Behaviour |
+|---|---|
+| Signed in | `SP.isAuthed()` = `state.userPhone` set **and** `users()[userPhone]` exists **and** *(v4 finish r2)* that record's `uid` equals `state.userUid` (the session is bound to the account record, not to its number — see "v4 finish round 2" below). The guard uses it. Sessions live per tab (sessionStorage) and accounts are shared (localStorage), so a phone change in one tab deletes the record another tab is signed in to |
+| `SP.dropStaleSession(opts?)` | Ends a session whose record is gone: `SP.reset({signOut:true, go:false})`, toast `SP.toastMsg.sessionEnded` (`ანგარიშის მონაცემები შეიცვალა. გთხოვთ, ხელახლა შეხვიდეთ`), re-render (unless `{render:false}`) so the guard sends the user to login. Runs on boot, on every route handle, on the window `storage` event for `slicepay:v1:users`, before a card payment (`SP.completeCheckout` returns `null` then) and from `profile.js` when an API call returns `error:'auth'` |
+| Orders store | `SP.orders.list/save/seedDemo/remove/clear` do nothing for a phone with no account record (no writes, no demo re-seed under a freed number). A phone change *replaces* anything stored under the new number with the account's orders (never merges). A newly verified account drops any orphan list stored under its number |
+| Statuses | `SP.FIRST_STATUS` (`'processing'`, `მუშავდება`) is the single source: `createOrder`, the legacy-order upgrade and `SP.orderSteps` use it |
+
+### v4 finish round 2 (core fixes)
+
+| Area | Behaviour |
+|---|---|
+| Session ↔ account | Every user record has a stable id `uid` (`record()` sets it, `withPassword` and the phone-change re-key keep it; `resetDemoUser` keeps the demo record's). `SP.signIn` stores it as `state.userUid` (a record stored by an older build gets one at that moment: its `created` time as `'c<created>'`, else a new id). A session is valid only while `users()[userPhone].uid === state.userUid`: a tab that missed the `storage` event (left the app, closed and restored, discarded) and comes back after its number was freed and taken by another account (or the demo number re-created) is ended by `SP.dropStaleSession` → login + `sessionEnded` toast, never signed in to the other account. A session saved by an older build (no `userUid`) is ended once. A backend port: bind the session token to the account id, never to the phone number |
+| Stale-session reads / writes | `SP.api.getProfile()` returns `null`; `updateProfile`, `changePassword`, `startPhoneChange`, `resendPhoneChange`, `verifyPhoneChange` return `{ok:false, error:'auth'}`; `SP.orders.*` without an explicit phone read / write nothing |
+| `?demo=1` | The demo branch of the QA seed signs in through `SP.signIn` (the previous account's receipt, recipient, personal ID, recovery and pending phone change end) |
+| Statuses | `SP.isStatus(key)`: an own key of `SP.STATUS`. A stored status such as `'constructor'` / `'__proto__'` reads as `processing` (pill, timeline, legacy upgrade) |
+| `UI.dHead` / `UI.accountNav` | The unused `opts.account` variants and accountNav's `only` argument are removed: signed in, the header always shows both links. `UI.accountNav(current?)` |
+
+### v4 finish round 3 (core fixes)
+
+| Area | Behaviour |
+|---|---|
+| Recovery ↔ account | `SP.api.sendCode(phone, uid?)` stores `state.recover = {phone, code, sentAt, expiresAt: sentAt + SP.VERIFY_TTL, uid}`, where `uid` is the record id of the account that holds `phone` **now**. With `uid` (a resend of a pending recovery), no code is sent and `''` is returned when the number no longer belongs to that account. `SP.api.resetPassword(phone, password, uid?)` (`uid` defaults to the pending recovery's) → `{ok:true}`, or `{ok:false, error:'gone'}` when the number has no account, belongs to another account (freed by a phone change and registered by someone else), or the recovery has no `uid` (an older build's), or `{ok:false, error:'expired'}` after `expiresAt`. Nothing is written unless ok. `SP.api.recoverFor(rec?)` / `SP.api.recoverExpired(rec?)` are the two checks. A backend port: bind the recovery token to the account id, never to the phone number, and give it a TTL |
+| `#/recover/code` | Submit order: no recovery → `კოდი არასწორია`; expired → `კოდს ვადა გაუვიდა, მოითხოვეთ ახალი` on `#code`; wrong code; then `resetPassword` — `'gone'` steps back to `#/recover` with `ამ ნომრით მომხმარებელი არ არსებობს` (no success toast), `'expired'` shows the expired message. Resend: a new code for the same account only (else the same step back); a successful resend clears `#code` and its message. `#/recover` reuses a pending code inside the 30 s cooldown only while `recoverFor(rec)` holds |
+| `?demo=1` on `#/recover/code` | The seeded recovery (code `4821`) is bound to the demo record's `uid` and valid for `SP.VERIFY_TTL` |

@@ -137,10 +137,13 @@ async function payCard(p) {
   await p.click('#card-submit');
   return waitHash(p, /^#\/(success|orders\/)/, 6000);
 }
-/** v4: logout lives on #/profile (ᲒᲐᲡᲕᲚᲐ, [data-action="logout"]); the orders heading link is პროფილი. Opens the
-    profile page directly (or through the orders heading link when viaOrders) and clicks ᲒᲐᲡᲕᲚᲐ. */
+/** v4f: the way to the profile from the orders list. Desktop: the header link (.d-head .acct-link--profile) — the
+    heading-row link .ord-top__out is mobile-only (only-m), so desktop never shows პროფილი twice. Mobile: .ord-top__out */
+const profLinkSel = p => ((p.viewportSize() || { width: 1440 }).width >= 900 ? '.d-head .acct-link--profile' : '.ord-top__out');
+/** v4: logout lives on #/profile (ᲒᲐᲡᲕᲚᲐ, [data-action="logout"]). Opens the profile page directly (or from the
+    orders list through its პროფილი link — header on desktop, heading row on mobile — when viaOrders) and clicks ᲒᲐᲡᲕᲚᲐ. */
 async function logout(p, viaOrders = false) {
-  if (viaOrders) { await go(p, '#/orders'); await sleep(150); await vis(p, '.ord-top__out').click(); await waitHash(p, /^#\/profile$/); }
+  if (viaOrders) { await go(p, '#/orders'); await sleep(150); await vis(p, profLinkSel(p)).click(); await waitHash(p, /^#\/profile$/); }
   else await go(p, '#/profile');
   await sleep(150);
   await vis(p, '[data-action="logout"]').click(); await sleep(300);
@@ -148,4 +151,4 @@ async function logout(p, viaOrders = false) {
 async function shot(p, name) { await p.screenshot({ path: OUT + '/' + name + '.png', fullPage: true }); }
 
 module.exports = { BASE, OUT, sleep, newPage, state, visTxt, hash, mkLog, launch, newCtx, hook, H, waitHash, go, txt, tc, vis, toast, appText, appVisText, st, totals, noOverflow, active,
-  landingAdd, cartAdd, register, verify, login, delivery, payCard, logout, shot };
+  landingAdd, cartAdd, register, verify, login, delivery, payCard, logout, profLinkSel, shot };

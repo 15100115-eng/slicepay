@@ -19,8 +19,10 @@
   function page(o) {
     return '' +
       '<div class="m-page auth-page auth-page--' + o.key + '">' +
-        // the designed auth header is back link + centred logo only: no "ჩემი შეკვეთები" account link
-        UI.dHead(o.back, { account: false, backAny: !!o.any }) +
+        // signed out (the designed case) the header is back link + centred logo only — UI.dHead shows the account
+        // links only while signed in; signed in (#/recover reached by URL / history) it shows პროფილი · ჩემი შეკვეთები
+        // like every other inner screen (INTEGRATION.md v4 header composition, V4UX2-04)
+        UI.dHead(o.back, { backAny: !!o.any }) +
         '<main class="auth">' +
           '<form class="auth__form" id="auth-form" novalidate>' +
             '<h1 class="t-h1 auth__h">' + o.heading + '</h1>' +
@@ -99,9 +101,12 @@
     var check = '<div class="auth__check">' + UI.checkbox({ variant: 'auth', id: 'log-remember', checked: ctx.query.remember === '1' || !!remembered, label: 'პაროლის დამახსოვრება' }) + '</div>';
     return page({ key: 'login', back: authBack(), any: !!next, heading: 'პირადი ინფორმაცია<span class="sr-only"> — ავტორიზაცია</span>', fields: fields, check: check, submit: UI.mt('next') });
   }
+  /** V4F-REV2-06: the number a recovery was started for, when it stopped existing before the new password was
+      saved (re-keyed by a phone change in another tab) — #/recover shows it again with the "no user" error */
+  var recoverGone = null;
   function renderRecover() {
-    var rec = SP.state().recover;
-    return page({ key: 'recover', back: '/login', heading: 'პაროლის აღდგენა<span class="sr-only"> — ნომრის მითითება</span>', fields: f(phoneField('rec-phone', { value: rec ? SP.fmt.phone(rec.phone) : '' })), submit: UI.mt('sendCode') });
+    var rec = SP.state().recover, phone = recoverGone || (rec && rec.phone);
+    return page({ key: 'recover', back: '/login', heading: 'პაროლის აღდგენა<span class="sr-only"> — ნომრის მითითება</span>', fields: f(phoneField('rec-phone', { value: phone ? SP.fmt.phone(phone) : '' })), submit: UI.mt('sendCode') });
   }
   function renderCode() {
     var fields =
@@ -320,15 +325,23 @@
       if (!SP.api.userExists(phone)) { setErr('rec-phone', M.noUser); root.querySelector('#rec-phone').focus(); return; }
       // same phone inside the 30 s cooldown → back to the pending recovery, no new code
       var rec = SP.state().recover;
-      if (rec && rec.phone === phone && Date.now() - rec.sentAt < 30000) { UI.codeToast(rec.code); SP.go(withNext('/recover/code', nextOf(ctx))); return; }
+      // (v4 finish r3: only while the number still belongs to the account that code was sent for)
+      if (rec && rec.phone === phone && Date.now() - rec.sentAt < 30000 && SP.api.recoverFor(rec)) { UI.codeToast(rec.code); SP.go(withNext('/recover/code', nextOf(ctx))); return; }
       UI.codeToast(SP.api.sendCode(phone));
       SP.go(withNext('/recover/code', nextOf(ctx)));
     });
-    if (ctx.entry && ctx.query.err === '1') w.validateAll();
+    if (recoverGone) {
+      // kept like a backend error: a blur must not replace it with a format-only check
+      recoverGone = null; w.setErr('rec-phone', M.noUser); w.markServer('rec-phone');
+      var ri = root.querySelector('#rec-phone');
+      ri.setAttribute('data-autofocus', '');   // a new entry: the router focuses it instead of the heading
+      ri.focus();                              // a step back (no router focus)
+    } else if (ctx.entry && ctx.query.err === '1') w.validateAll();
   }
 
   function mountCode(root, ctx) {
     stopTimers();   // a re-render of this route must not leave a second countdown running
+    recoverGone = null;
     var codeIn = root.querySelector('#code');
     codeIn.addEventListener('input', function () { var v = codeIn.value.replace(/\D/g, '').slice(0, 4); if (v !== codeIn.value) codeIn.value = v; });
     var w = wire(root, {
@@ -337,8 +350,16 @@
       'new-pass2': function (v) { return !v ? M.required : v === root.querySelector('#new-pass').value ? '' : M.match; }
     }, function (setErr) {
       var rec = SP.state().recover;
-      if (!rec || codeIn.value.trim() !== rec.code) { setErr('code', M.codeWrong); codeIn.focus(); return; }
-      SP.api.resetPassword(rec.phone, root.querySelector('#new-pass').value);
+      if (!rec) { setErr('code', M.codeWrong); codeIn.focus(); return; }
+      // v4 finish r3: a code older than SP.VERIFY_TTL is refused (the same order as the registration code)
+      if (SP.api.recoverExpired(rec)) { setErr('code', M.codeExpired); codeIn.focus(); return; }
+      if (codeIn.value.trim() !== rec.code) { setErr('code', M.codeWrong); codeIn.focus(); return; }
+      // the recovery belongs to the account the code was sent for (rec.uid, v4 finish r3): its number may have been
+      // re-keyed away since (a phone change in another tab) — and even registered by someone else. Nothing was
+      // changed, so no success toast — back to the number step with the "no user" error
+      var r = SP.api.resetPassword(rec.phone, root.querySelector('#new-pass').value, rec.uid);
+      if (r && r.error === 'expired') { setErr('code', M.codeExpired); codeIn.focus(); return; }
+      if (!r || !r.ok) { gone(rec); return; }
       SP.set({ recover: null, loginPhone: rec.phone });
       SP.go(withNext('/login', nextOf(ctx)));
       UI.toast('პაროლი წარმატებით შეიცვალა');
@@ -358,9 +379,24 @@
     resend.addEventListener('click', function () {
       if (resend.getAttribute('aria-disabled') === 'true') return;
       var rec = SP.state().recover;
-      UI.codeToast(SP.api.sendCode(rec.phone));
+      if (!rec) { SP.go(withNext('/recover', nextOf(ctx)), { replace: true }); return; }
+      // a new code only for the same account (v4 finish r3): its number taken by someone else → the "gone" step back
+      var code = SP.api.sendCode(rec.phone, rec.uid);
+      if (!code) { gone(rec); return; }
+      UI.codeToast(code);
+      // the old code (and its expired / wrong-code message) no longer applies
+      codeIn.value = '';
+      w.setErr('code', '');
       cooldown.refresh();
     });
+    function gone(rec) {
+      recoverGone = rec.phone;
+      SP.set({ recover: null });
+      // step back onto the number entry this screen came from (its ?next= intact); else replace this entry with it
+      var hs = window.history.state;
+      if (hs && hs.spPrev === '/recover') SP.back('/recover');
+      else SP.go(withNext('/recover', nextOf(ctx)), { replace: true });
+    }
     if (ctx.entry && ctx.query.err === '1') w.validateAll();
   }
 

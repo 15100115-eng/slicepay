@@ -51,7 +51,7 @@ Back navigation:
 
 | Param | Effect |
 |---|---|
-| `demo=1` | Seeds the Nike demo product (500/100/250/100) and logs in the demo user (phone `555 123 456`, password `slicepay1`). On `#/recover/code` it also seeds a recovery with code `4821` and no cooldown. On `#/success` it re-creates the order snapshot |
+| `demo=1` | Seeds the Nike demo product (500/100/250/100) and logs in the demo user (phone `555 123 456`, password `slicepay1`). On `#/recover/code` it also seeds a recovery with code `4821` and no cooldown (bound to the demo record's `uid`, valid for `SP.VERIFY_TTL` — v4 finish r3). On `#/success` it re-creates the order snapshot |
 | `weight=0\|1`, `customs=0\|1` | Deferred (checked) state of each checkbox. 1 = deferred |
 | `details=0\|1` | Cart: every product's breakdown open. Payment: details box open |
 | `method=bog\|tbc\|mere` | Selected payment method |
@@ -70,6 +70,9 @@ Back navigation:
 | `auth=0` | Logs out the current user |
 | `anim=0` | Freezes motion (carousel, spinner, transitions) |
 | `toast=1` | Shows a sample toast |
+| `#/profile?demo=1` | v4: demo user signed in on the profile (password `slicepay1`), QA number 577 123 456 freed (details: "v4 integration → Routes and QA params added in v4", "QA data safety") |
+| `edit=phone`, `edit=phone&step=code` | v4 profile: phone form open / code step for 577 123 456 (code `4821`, no cooldown) |
+| `err=1` on `#/profile` | v4 profile: validation errors visible |
 
 ## Decisions beyond the docs
 
@@ -285,7 +288,7 @@ The core fixer changed `index.html`, `css/base.css`, `css/fonts.css`, `js/core.j
 - **Back-link underline at 1x (cart-r2-06):** new token `--c-back-underline`, set to `rgb(94 52 236/.65)` under `@media (max-resolution:1.49dppx)`. The 1 px line at y=41 is now #9277ef instead of #5e34ec, close to the design's two-row #cbc1f1/#b7a7f0. 2x screens keep the full colour; hover uses `currentColor`.
 
 ### Privacy (R2-19)
-- The account store keeps only `{salt, pass, created}` per phone. First/last name and e-mail are validated by the form but never persisted, and `users()` strips them from entries written by older builds.
+- The account store keeps only `{salt, pass, created}` per phone. First/last name and e-mail are validated by the form but never persisted, and `users()` strips them from entries written by older builds. *(Superseded in v4: the account now stores its own `first`, `last`, `email` for the profile page, and the strip is removed; see V4_SPEC §B and the v4 notes below. The personal ID and card data are still never stored.)*
 - Passwords use a per-user random salt (`crypto.getRandomValues`) and 2000 rounds of FNV-1a. This is still demo-grade and is documented in `core.js`: it keeps plain passwords out of storage and is not real credential security. Old unsalted hashes still verify, and a reset or register rewrites the record in the new format.
 - The store stays in localStorage, so remember-me and registered demo accounts survive a browser restart. Card data is never stored.
 
@@ -1109,8 +1112,8 @@ links; `SCRATCH/...` and `tools/<name>.js` paths in it are historical.
 
 | Area | Files | Result |
 |---|---|---|
-| Profile | `js/screens/profile.js`, `css/screens/profile.css` | The real `#/profile` (V4_SPEC §B) replaces the core placeholders: personal info (save disabled-look until a trimmed value changes; register validation; toast `ცვლილებები შენახულია`), phone change (live formatting incl. `+995` paste; required / format / same / taken; SMS code step with 30 s resend cooldown, wrong / expired code; success redraws only the phone section and re-keys the account), password change (all errors at once; fields cleared and hidden again on success), outline `ᲒᲐᲡᲕᲚᲐ`. Desktop header shows only `ჩემი შეკვეთები`; mobile bar `ᲣᲙᲐᲜ` only. Toast at the top on phones, edited control kept clear of it |
-| Orders | `js/screens/orders.js` | List heading link `გასვლა` → `პროფილი` (`<a class="link t-body ord-top__out" href="#/profile" data-acct="profile">`), same box; the list has no logout control. The `მუშავდება` pill and the 7-step timeline needed no orders code |
+| Profile | `js/screens/profile.js`, `css/screens/profile.css` | The real `#/profile` (V4_SPEC §B) replaces the core placeholders: personal info (save disabled-look until a trimmed value changes; register validation; toast `ცვლილებები შენახულია`), phone change (live formatting incl. `+995` paste; required / format / same / taken; SMS code step with 30 s resend cooldown, wrong / expired code; success redraws only the phone section and re-keys the account), password change (all errors at once; fields cleared and hidden again on success), outline `ᲒᲐᲡᲕᲚᲐ`. Desktop header shows only `ჩემი შეკვეთები` *(superseded in v4 r1: both links, `პროფილი` current — see "v4 round 1 → Header links")*; mobile bar `ᲣᲙᲐᲜ` only. Toast at the top on phones, edited control kept clear of it |
+| Orders | `js/screens/orders.js` | List heading link `გასვლა` → `პროფილი` (`<a class="link t-body ord-top__out" href="#/profile" data-acct="profile">`), same box; the list has no logout control *(v4 finish: `.ord-top__out` is `only-m`; desktop uses the header's `პროფილი`)*. The `მუშავდება` pill and the 7-step timeline needed no orders code |
 | Delivery | `js/screens/delivery.js` | Recipient names from `SP.recipientPrefill(st)` (session names win, else the account profile); the personal ID is never prefilled from the profile |
 | Core | `js/core.js` | `#/profile?demo=1` no longer seeds `გიორგი` / `ბერიძე` into `state.delivery` (fresh default delivery on `/profile`), so a name edit made there reaches the delivery step. Other `demo=1` routes are unchanged (parity stays 600₾ / 150₾) |
 | Comments | `js/screens/{profile,orders,delivery}.js`, `css/base.css`, `css/screens/{profile,payment}.css` | Doc references point at `docs/` instead of the scratchpad files |
@@ -1134,7 +1137,7 @@ The suite was ported from the pre-v4 scripts, so the v4 expectation changes were
 - the user record keeps the account's own names / e-mail (users-storage, round3 otp), and A's re-login prefills A's own names (never the ID).
 
 New suites (discovered by `run-all.js`):
-- `e2e/profile.test.js` (119 checks at 428 / 1440, fake clock): guard + login next, layout, personal info save / validation / escaping, profile edit → delivery prefill, phone change errors (required, format, same, taken), code errors (short, wrong, expired), resend cooldown, reload on the code step, re-keying (users, orders, remember-me, session), orders still visible, old number refused at login and the new one accepted, password change (required, wrong current, short, mismatch, same, eye reset, success, old password refused), logout.
+- `e2e/profile.test.js` (119 checks at the time; 172 after v4 r1 / finish; at 428 / 1440, fake clock): guard + login next, layout, personal info save / validation / escaping, profile edit → delivery prefill, phone change errors (required, format, same, taken), code errors (short, wrong, expired), resend cooldown, reload on the code step, re-keying (users, orders, remember-me, session), orders still visible, old number refused at login and the new one accepted, password change (required, wrong current, short, mismatch, same, eye reset, success, old password refused), logout.
 - `e2e/status.test.js` (78 checks at 320 / 428 / 1440): status model, new checkout order in list + detail, demo orders' processing step, stored legacy orders without the step (`ordered`, `transit`, no status).
 
 ### Verification (`npm test` against the live app, Playwright 1.63.0)
@@ -1147,3 +1150,202 @@ cases d04, d05, d07, d12–d17, which move by +0.02 to +0.03 (the `პროფ�
 
 The project is a git repository (branch `main`). `.gitignore` excludes `node_modules/`, `tests/out/`, `.DS_Store`,
 `*.log` and `.claude/settings.local.json`.
+
+## v4 round 1 (core fixer: stale sessions, password oracle, QA data safety, header links, cleanup)
+
+Findings V4QA1-01/02, V4R1-01/02/05/07 and the round-1 requests. Files: `js/core.js`, `js/ui.js`,
+`js/screens/{profile,orders,pay}.js`, `README.md`, `docs/INTEGRATION.md` ("v4 round 1"), `package-lock.json`,
+`tests/e2e/profile.test.js`, `tests/functional/round1/navigation-guards.test.js`.
+
+### Stale ("zombie") sessions after a phone change (V4QA1-01, V4R1-01)
+- **Cause:** sessions live per tab (sessionStorage) and accounts are shared (localStorage). `rekeyAccount()` deletes
+  `users[old]` / `orders[old]`, but a second tab kept `state.userPhone = old`. The guard and `SP.isAuthed` only read
+  `userPhone`, so that tab stayed "signed in": profile saves silently did nothing (`error:'auth'` → rerender → same page),
+  a checkout wrote its order under the freed number, and the next person registering that number saw it.
+- **Fix:** `SP.isAuthed()` now also requires `users()[userPhone]`; the guard uses it. New `SP.dropStaleSession(opts)`
+  ends such a session (sign-out reset, toast `SP.toastMsg.sessionEnded`, guard → login). It runs on boot, on every
+  route handle, on the `storage` event for the users key (an open tab reacts at once), before a card payment
+  (`SP.completeCheckout` returns `null`, `pay.js` stops) and from `profile.js` `lost()` on `error:'auth'`.
+- *(v4 finish round 2: incomplete — a tab that missed the `storage` event (left the app, restored after a close,
+  discarded) and came back after its freed number was taken by another account, or after another tab's boot re-created
+  555 123 456, was signed in to that account, since only the number was checked. Sessions are now bound to the
+  record's `uid`; see "v4 finish round 2".)*
+- **Storage hardening:** `SP.orders.list/save/seedDemo/remove/clear` do nothing for a phone with no account record (no
+  writes, no demo re-seed under a freed key). `rekeyAccount` replaces `orders[new]` with the account's orders instead of
+  concatenating orphans into it. `verify()` drops any orphan list stored under a newly registered number.
+
+### Password-change oracle (V4QA1-02)
+`SP.api.changePassword` checked "new = current" (`passSame`) whatever was typed as the current password, so the form
+could test password guesses. `passSame` now runs only when the current password verified (`curOk`). Doc comment and
+INTEGRATION.md updated (a backend port must keep this order).
+
+### Demo account always exists, number reserved (V4R1-02)
+`SP.start()` calls `SP.api.ensureDemoUser()` on every boot (after `dropStaleSession`, so a tab left on a re-keyed demo
+account does not silently land in the fresh one). Registration (`startRegistration`, `verify`) and the phone change
+(`startPhoneChange`, `verifyPhoneChange`) refuse 555 123 456, so `?demo=1` URLs can never sign in to or reset a real
+user's account. The README note about opening a `?demo=1` URL first is replaced.
+
+### QA data safety (V4R1-05)
+`#/profile?demo=1` deletes the 577 123 456 record, orders and remember-me only when that record is QA data:
+`rekeyAccount` marks the demo account `rec.qa = true` when it moves off 555 123 456 (`withPassword` keeps the marker).
+A real account registered or moved to 577 123 456 is kept; the `&step=code` seed then is not created (plain form).
+
+### Header links
+- Order detail: `UI.dHead('/orders', {account:'profile'})`: exactly one header link `პროფილი`. The list keeps `false`.
+  *(Superseded in v4 finish: both orders screens use the default header with both links; the list marks
+  `ჩემი შეკვეთები` current — see "v4 finish".)*
+- Profile page: `UI.dHead('/', {current:'profile', backAny:true})`: both links, `პროფილი` with `aria-current="page"`
+  (the existing `.acct-link[aria-current="page"]` style: black, no underline). `UI.accountNav(only, current)`.
+- `UI.dHead` doc comment lists the per-screen composition.
+
+### Cleanup (V4R1-07)
+Removed the unused `SP.api.register` and `UI.profileLink(cls)`'s parameter; `aria-current` is now set (see above), so
+the CSS rule is live; `FIRST_STATUS` is a core constant used by `createOrder`, `withProcessing`, `orderSteps`,
+`orderTimeline` (`SP.FIRST_STATUS` exposes it). `package-lock.json` root entry matches `package.json` (0.4.0, node >=20).
+
+### Tests
+- `e2e/profile`: desktop header on `#/profile` = `პროფილი` (current) · `ჩემი შეკვეთები`; wrong current + new = real
+  password → only the current-field error (UI and API); new "two tabs" block (registered account A in tab 1 and a
+  duplicated tab 2, number change in tab 1 → tab 2 signed out at once with the toast; a stale tab whose record vanished
+  writes no orders and ends on ᲨᲔᲜᲐᲮᲕᲐ; a new owner of the freed number sees no orphan orders; 555 123 456 refused by
+  register and phone change).
+- `functional/round1/navigation-guards`: the orders list has no header link; the order detail has exactly one,
+  `.d-head .acct-link--profile` `პროფილი` (`#/profile`, purple). *(Superseded in v4 finish: both screens show both
+  links; the list marks `ჩემი შეკვეთები` current.)*
+
+## v4 finish
+
+- **Orders list, one `პროფილი` on desktop.** The list header already carries both account links (`ჩემი შეკვეთები`
+  with `aria-current="page"`), so the heading-row link is now `.ord-top__out.only-m` (mobile only). Desktop reaches
+  the profile through `.d-head .acct-link--profile`. Tests that clicked `.ord-top__out` at desktop width now use the
+  header link; `L.profLinkSel(p)` (`tests/lib/harness.js`) picks the selector for the viewport, and `L.logout(p, true)`
+  uses it.
+- **Header composition (docs caught up with the code).** Every screen calls `UI.dHead` with the default `account`, so
+  every signed-in inner header shows `პროფილი · ჩემი შეკვეთები`: the order detail shows both links, and the orders list
+  marks `ჩემი შეკვეთები` as current. The auth screens show none while signed out, and a signed-in `#/recover` shows
+  both. `'profile'`/`'orders'`/`false` still exist but no screen passes them. Updated: the `UI.dHead` doc comment and
+  the INTEGRATION.md header-composition row. The stale header assertions in `navigation-guards`,
+  `round3/navigation` and `users-storage` now expect the v4 header.
+- **Recipient names have no length limit.** `#d-first` / `#d-last` lost `maxlength="40"`, like register and profile,
+  which never had one. All three forms validate names the same way (required, trimmed), so a long profile name
+  prefills delivery whole and can still be edited.
+- **Profile regressions in `e2e/profile`** (block `profile r2`, 428 + 1440, real clock): double-click, double Enter and
+  held Enter on the password change; double Enter and double click in both phone-change steps (and a later deliberate
+  submit still validates); a 55-character name editable on the profile and prefilled uncut on delivery; spacing of
+  h1 → first card 24 px, and at 428 logout ↔ bottom bar ≥ 24 px in the plain, edit, code and error states.
+- **Parity output per run.** `tests/visual/parity.js` writes to `<TEST_OUT>/visual/runs/<PARITY_RUN | timestamp-pid>/`
+  (`shots/`, `parity.json`), so parallel runs never delete each other's shots. `visual/parity.json` is an atomic copy
+  of the latest result. Old runs are pruned: the newest 5 are kept, plus any younger than 6 h (`PARITY_KEEP`,
+  `PARITY_KEEP_HOURS`). Two parity runs started 3 s apart both finished 34/34, each with its own 70 files.
+- `npm test`: 40/40 suites green, 3845 checks passed, 0 failed (parity 34/34).
+
+## v4 finish round 1
+
+- No core findings and no requests from the screen fixers came in this round, so no app or test files changed.
+- `npm test` passed with nothing changed: 40/40 suites green, 3845 checks passed, 0 failed (visual parity 34/34).
+
+## v4 finish round 2
+
+Core findings v4f-r2-01/02/05, V4F-REV2-01/04/05/10 and the screen fixers' requests (all but the optional V4F-REV2-07). Files: `js/core.js`, `js/ui.js`,
+`js/screens/profile.js`, `css/base.css`, `README.md`, `docs/INTEGRATION.md` ("v4 finish round 2"),
+`tests/e2e/profile.test.js`.
+
+### Sessions bound to the account record (v4f-r2-01, V4F-REV2-01)
+- **Cause:** a session was tied to its account only by `state.userPhone`; `SP.isAuthed` / `SP.dropStaleSession` just
+  checked that `users()[userPhone]` existed. The `storage`-event logout only reaches tabs that are running. A tab that
+  left the app (about:blank → Back), was closed and restored (Chrome restores sessionStorage) or was discarded kept
+  `userPhone = A`; once A moved to A2 and C registered A, that tab came back signed in to C: C's profile and orders,
+  profile edits and a phone change (re-key) without C's password, A's session cart / recipient / personal ID carried in.
+  Same for the demo number, which any boot re-creates.
+- **Fix:** every user record has a stable `uid` (`record()` → `SP.uid()`; `withPassword` keeps it, `rekeyAccount`
+  moves the whole record, `resetDemoUser` keeps the existing demo record's uid; `ensureDemoUser` re-creating the demo
+  record gives a new one). `accountId(u)` = `u.uid`, or `'c' + u.created` for a record stored by an older build.
+  `SP.signIn` stores it as `state.userUid` (and persists it on a legacy record); a different uid on the same number
+  counts as a different account (personal session data reset). `sessionUser()` = the record under `userPhone` whose
+  id equals `state.userUid`; `SP.isAuthed`, `SP.dropStaleSession`, `SP.api.getProfile/updateProfile/changePassword/
+  startPhoneChange/resendPhoneChange/verifyPhoneChange` and `SP.orders.*` (default phone, via `ownerPhone()`) all use
+  it. A session saved by an older build has no `userUid` and is ended once (login + `sessionEnded` toast), not adopted.
+  `SP.reset` keeps `userUid` with the user on a signed-in "start over"; `?auth=0` and the register/verify seed clear it.
+
+### Phone change (v4f-r2-02, V4F-REV2-05)
+- `resendPhoneChange` refuses a number that was registered meanwhile (or the reserved demo number):
+  `{ok:false, error:'exists', message: SP.msg.phoneTaken}`, no new code. `profile.js` shows the message on `#pf-code`
+  (`UI.setError`) instead of only refreshing the cooldown.
+- `startPhoneChange`, `resendPhoneChange` and `verifyPhoneChange` return `{ok:false, error:'auth', message:''}` without a
+  valid session (record missing or another account); a re-key that fails inside `verifyPhoneChange` maps to `'auth'`
+  (was `'none'` with an empty message), so `profile.js` `lost()` ends the session.
+
+### `?demo=1` sign-in (V4F-REV2-04)
+The demo branch of `applyQA` calls `SP.signIn(SP.DEMO_USER.phone)` instead of setting `state.userPhone`: coming from
+another account, that person's receipt (`state.order`), recipient / personal ID, recovery, login phone, pending
+registration and pending phone change end there. The seed then applies as before.
+
+### Status robustness (v4f-r2-05)
+`SP.isStatus(k)` = own key of `SP.STATUS`. `withProcessing` uses it (so `'constructor'`, `'toString'`, `'__proto__'`,
+`'hasOwnProperty'` read as `processing`), `SP.orderPill` labels only a known status (else `მუშავდება`) and
+`SP.orderTimeline` treats an unknown status as the first step.
+
+### Requests applied
+- INTEGRATION.md Profile row: toast at top 22 (band 22–66), plain toasts let taps through, `.toast--code` takes taps;
+  `scroll-margin-top: 76` + section `scrollIntoView({block:'nearest'})` with the control fallback; the patch save and
+  the `storage` follow-up (also noted on the `updateProfile` row for a backend port).
+- `css/base.css`: the forced-colors `GrayText` rule now covers every `.btn[aria-disabled="true"]` (the landing too).
+- V4F-REV2-07 (clear `state.delivery.pid` after checkout) was tried and **not applied**: it breaks the designed
+  next-order prefill (`functional/round3/misc` "2nd order delivery form prefilled from the previous order (courier
+  Batumi, ID)", INTEGRATION.md `SP.completeCheckout`: "the recipient and address are kept for the next order"). It
+  needs a product decision on whether the ID is re-typed per order; the ID still never leaves sessionStorage.
+- README §Profile other-tabs sentence and the v4 r1 "Stale sessions" section rechecked against restored-tab behaviour
+  and corrected.
+
+### Cleanup (V4F-REV2-10)
+`UI.dHead` lost the unused `opts.account` variants and `UI.accountNav` its `only` argument (`UI.accountNav(current?)`):
+signed in, the header always shows `პროფილი · ჩემი შეკვეთები`.
+
+### Tests
+- `e2e/profile`: new block "profile recycled number" (1440, fake clock): record uid in the session; a phone change
+  keeps the session valid; (a) a tab that left the app comes Back after its number was recycled → `#/login?next=/profile`
+  + toast, personal ID gone, not C's account; (b) a restored tab on `#/orders` → login + toast, no orders read;
+  (c) a stale in-memory session is not authed, reads no profile / orders, cannot edit, re-key or write orders into C's
+  account; (d) an older build's session (no uid) is ended once; `?demo=1` drops the previous account's receipt; resend
+  to a number taken meanwhile shows `ეს ნომერი უკვე დარეგისტრირებულია` on `#pf-code`; start / resend / verify answer
+  `auth` without the record; prototype-key statuses read as `მუშავდება`. No existing test was changed.
+- `npm test`: 40/40 suites green, 3859 checks passed, 0 failed (visual parity 34/34).
+
+## v4 finish round 3
+
+Core findings v4f-r3-01 and V4F-REV3-01 (the same bug, found by QA and by the review); no screen-fixer requests.
+Files: `js/core.js`, `js/screens/auth.js`, `docs/INTEGRATION.md` ("v4 finish round 3"), `tests/e2e/profile.test.js`.
+
+### Password recovery bound to the account record (v4f-r3-01, V4F-REV3-01)
+- **Cause:** `state.recover` was `{phone, code, sentAt}`, with no account id and no expiry. A phone change frees the old
+  number. If someone else then registered it, a recovery started earlier for that number in another tab still worked:
+  `SP.api.resetPassword(rec.phone, …)` rewrote whichever record held the number (`withPassword` keeps that record's
+  uid and profile), so the new owner's password was replaced and the old tab could sign in to their account. The
+  owner's own password was refused. The code never expired, so the window lasted for the whole tab session. The v4
+  finish r2 `V4F-REV2-06` path only covered a number that no longer existed. This is the same class of bug as the r2
+  session binding.
+- **Fix:** `sendCode(phone, uid?)` stores `uid: accountId(users()[phone])` and `expiresAt: now + SP.VERIFY_TTL`; with
+  `uid` (a resend) it sends nothing and returns `''` when the number now belongs to another account.
+  `resetPassword(phone, password, uid?)` (the `uid` defaults to the pending recovery's) refuses with `error:'gone'` when
+  the number has no record, its record is another account, or the recovery has no `uid` (an older build's), and with
+  `error:'expired'` after `expiresAt`. New helpers: `SP.api.recoverFor(rec?)` and `SP.api.recoverExpired(rec?)`. The QA
+  seed (`#/recover/code?demo=1`) stores the demo record's uid and an expiry.
+- `auth.js` `mountCode`: expired → `M.codeExpired` on `#code` (checked before the code, as on the registration and
+  phone-change codes); `'gone'` → the existing `recoverGone` step back to `#/recover` with `M.noUser`, no success toast
+  (shared `gone()` helper). Resend passes `rec.uid` and takes the same step back when no code comes back. A successful
+  resend clears `#code` and its message. `mountRecover` reuses a pending code inside the 30 s cooldown only while
+  `recoverFor(rec)` holds. A recovery entered fresh for a recycled number belongs to its current holder: the code goes to
+  the number's owner, as a real SMS would.
+- Not done (optional in the finding): the `storage` listener does not clear `state.recover`. The submit and the resend
+  already refuse a stale recovery with a clear message. Clearing it early would turn that message into a bare
+  "wrong code".
+
+### Tests
+- `e2e/profile`: new block "profile recover recycled" (428, fake clock). Covers: the recovery bound to A's uid with a
+  5-minute expiry; A re-keyed in tab 2 and C registering the freed number; the old code + new password → `#/recover` +
+  `ამ ნომრით მომხმარებელი არ არსებობს`, no success toast, C's uid / hash / profile unchanged, C's own password still
+  works; `resetPassword` with another account's uid or an unbound recovery → `gone`; resend after the number was taken →
+  no code, same step back; a fresh recovery binds to the current holder; an expired code → `კოდს ვადა გაუვიდა, მოითხოვეთ
+  ახალი`, password unchanged, `resetPassword` → `expired`; resend renews it and clears the message; success in time;
+  the `?demo=1` seed bound and valid. No existing test was changed.
+- `npm test`: 40/40 suites green, 3878 checks passed, 0 failed (visual parity 34/34).

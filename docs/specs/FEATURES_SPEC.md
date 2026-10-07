@@ -123,10 +123,13 @@ Demo seed (`demo=1`, and the demo user on first login): two past orders so the l
 250 → actual 238 → `გადასახდელია: 350₾`. New orders start at `შეკვეთილია`.
 Statuses (timeline order): `შეკვეთილია` → `გზაშია` → `საწყობშია` → `განბაჟება` →
 (`მზადაა გასატანად` for pickup | `კურიერთანაა` for courier) → `ჩაბარდა`.
+> **Superseded in v4:** `მუშავდება` (`processing`) is now the first status: new orders start at `მუშავდება`,
+> and the timeline has 7 steps (`მუშავდება` → `შეკვეთილია` → … → `ჩაბარდა`). See `docs/specs/V4_SPEC.md` §A and
+> `docs/INTEGRATION.md` (v4 changes §A).
 Status pill colours: in-progress #f3efff/#5e34ec, action needed (deferred due) #fff4e5/#b26a00
 (`გადასახდელია`), delivered #e8f5ee/#1e7b4a.
 List screen: heading `ჩემი შეკვეთები`, right side link `გასვლა` (logout → toast `თქვენ გამოხვედით
-სისტემიდან` → landing). Order card (white card like cart cards): `#731954 · 27 სექტემბერი 2026`, status
+სისტემიდან` → landing). *(v4: this link is now `პროფილი` → `#/profile`; logout moved to the profile page.)* Order card (white card like cart cards): `#731954 · 27 სექტემბერი 2026`, status
 pill, product names (ellipsis, `+1` if more), `სულ 600₾ · 150₾ × 4 თვე`, ETA line
 `სავარაუდო მიღება: …` or `ჩაბარდა: 3 აგვისტო`, and an orange due badge `გადასახდელია: 350₾` when due.
 Empty state: `ჯერ არ გაქვთ შეკვეთები` + button `ᲐᲮᲐᲚᲘ ᲨᲔᲙᲕᲔᲗᲐ` (→ landing).

@@ -14,7 +14,10 @@
 .prof{padding:34px var(--m-card-x) 0}
 .prof__h{color:var(--c-text);padding:0 2px}
 .prof__h:focus{outline:none}
-.prof-secs{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+.prof-secs{display:flex;flex-direction:column;gap:16px;margin-top:24px}   /* = orders .ord-list (h1 → first card 24) */
+/* the page is always taller than a phone screen: a bare .m-spacer collapses to 0 and the outline ᲒᲐᲡᲕᲚᲐ would touch
+   the bar's ᲣᲙᲐᲜ. The orders' minimum (.ord-spacer) keeps the two 60 px targets 24 apart */
+.prof-spacer{min-height:24px}
 
 /* ---------- section cards ---------- */
 .prof-sec{padding:20px 19px 22px;container-type:inline-size}
@@ -28,9 +31,16 @@
   .prof-names{grid-template-columns:minmax(0,1fr);row-gap:16px}
 }
 .prof-btn{margin-top:24px}
-/* the toast lands at the top of the viewport (below): a focused field / pressed button that would sit under it is
-   scrolled clear of the toast's band (profile.js keepClear + the browser's own focus scrolling) */
-.prof .field__input,.prof .btn,.prof .link{scroll-margin-top:72px;scroll-margin-bottom:24px}
+/* "nothing to save yet" on the white card: base.css's disabled recipe (50 % primary + 50 % white label) is tuned for
+   the landing's dark gradient and reads ≈ 1.6:1 here. A muted primary on the tint instead (label ≈ 3.8:1) */
+.prof .btn[aria-disabled="true"]{background:var(--c-primary-tint);color:#7d62ee}
+/* high contrast: the tint and the muted label are replaced by system colours — the system's "disabled" text colour
+   keeps it apart from the enabled ᲞᲐᲠᲝᲚᲘᲡ ᲨᲔᲪᲕᲚᲐ (V4FUX2-02) */
+@media (forced-colors:active){ .prof .btn[aria-disabled="true"]{color:GrayText;border-color:GrayText} }
+/* the toast lands at the top of the viewport (below, 22–66): the card being edited — or, when it is taller than the
+   room below the band, its focused field / pressed button — is scrolled clear of it, 10 px under it (profile.js
+   keepClear BAND / BELOW + the browser's own focus scrolling; V4FUX2-01) */
+.prof .field__input,.prof .btn,.prof .link,.prof-sec{scroll-margin-top:76px;scroll-margin-bottom:24px}
 
 /* ---------- phone ---------- */
 /* current number (semibold, the receipt's digits) with "ნომრის შეცვლა" on the right of the same row */
@@ -53,10 +63,14 @@
 /* ---------- toast: top of the viewport on phones ----------
    The page is taller than a phone screen and the bar is not sticky, so the generic bottom spot (106) floats over
    whichever card is being edited — often the password fields or the code field with the keyboard up. As on orders /
-   delivery it sits at the top (12–56) and lets taps through; the edited control is kept below it (keepClear). */
+   delivery it sits at the top and lets taps through; the edited card is kept below it (keepClear). 22–66, as on
+   delivery (DLV-R2-02): at scroll 0 it covers the h1's ink rows (39–63) whole instead of slicing them (V4FUX2-01).
+   The test-code toast takes taps (select / copy the code, tap to dismiss) as on register / verify: it sits over
+   the h1 / the code lead only, the code field is kept below it (V4FUX2-03) */
 @media (max-width:899.98px){
-  body[data-screen="profile"] #toast-root{bottom:auto;top:12px}
+  body[data-screen="profile"] #toast-root{bottom:auto;top:22px}
   body[data-screen="profile"] .toast{transform:translateY(-8px);pointer-events:none}
+  body[data-screen="profile"] .toast.toast--code{pointer-events:auto}
 }
 
 /* ---------- narrow phones ---------- */
@@ -75,5 +89,7 @@
   .prof-names{column-gap:20px}
   .prof-f + .prof-f,.prof-names + .prof-f{margin-top:20px}
   .prof-names > .prof-f{margin-top:0}
-  .prof-out{margin-top:32px}
+  .prof-out{margin-top:32px;display:flex;justify-content:center}
+  /* the destructive secondary action at the design system's standalone desktop width, not the full 645 column */
+  .prof-logout{width:var(--d-form-w);max-width:100%}
 }

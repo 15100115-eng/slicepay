@@ -39,8 +39,10 @@
       '<section class="dlv__sec" aria-labelledby="dlv-rec-h">' +
         '<h2 class="dlv__sec-h" id="dlv-rec-h">მიმღები</h2>' +
         '<div class="dlv__names">' +
-          f({ id: 'd-first', label: 'სახელი', autocomplete: 'given-name', value: who.first, maxlength: 40 }) +
-          f({ id: 'd-last', label: 'გვარი', autocomplete: 'family-name', value: who.last, maxlength: 40 }) +
+          // no maxlength (v4f): register and profile have none and all three validate names the same way (required,
+          // trimmed). A limit here would lock a longer prefilled profile name — typing refused until it is cut below it
+          f({ id: 'd-first', label: 'სახელი', autocomplete: 'given-name', value: who.first }) +
+          f({ id: 'd-last', label: 'გვარი', autocomplete: 'family-name', value: who.last }) +
         '</div>' +
         // no maxlength: it would cut a pasted '010 0101 2345' before the input handler strips the spaces, and it would
         // silently drop the tail of a 12-digit paste (a wrong ID that then validates). The input handler does it instead.

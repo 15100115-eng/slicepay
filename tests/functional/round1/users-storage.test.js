@@ -41,14 +41,19 @@ const listIds = p => p.evaluate(() => [...document.querySelectorAll('.ord-card__
     // go to orders and logout
     await L.vis(p, '[data-action="orders"]').click(); await L.waitHash(p, /^#\/orders$/); await L.sleep(200);
     lg.check('A sees exactly own order', JSON.stringify(await listIds(p)) === JSON.stringify([oA.id]), await listIds(p));
-    if (W >= 900) lg.check('orders desktop header: back link, no account link', (await L.txt(p, '.d-head .back')) === 'უკან დაბრუნება' && !(await p.$('.d-head .acct-link')));
+    // v4 header: both account links on every signed-in inner header; on the orders list ჩემი შეკვეთები is aria-current=page
+    if (W >= 900) {
+      const hd = await p.evaluate(() => [...document.querySelectorAll('.d-head .acct-link')].map(a => a.textContent.trim() + (a.getAttribute('aria-current') === 'page' ? '*' : '')));
+      lg.check('orders desktop header: back link + პროფილი · ჩემი შეკვეთები (current)', (await L.txt(p, '.d-head .back')) === 'უკან დაბრუნება' && hd.join('|') === 'პროფილი|ჩემი შეკვეთები*', hd);
+    }
     else {
       const bar = await p.evaluate(() => [...document.querySelectorAll('.m-bar button')].filter(x => x.getClientRects().length).map(x => x.innerText.trim().split('\n')[0]));
       lg.check('orders mobile bar ᲣᲙᲐᲜ + ᲐᲮᲐᲚᲘ ᲨᲔᲙᲕᲔᲗᲐ', bar.join('|') === 'ᲣᲙᲐᲜ|ᲐᲮᲐᲚᲘ ᲨᲔᲙᲕᲔᲗᲐ', bar);
     }
     // v4: the orders heading link is პროფილი; logout (ᲒᲐᲡᲕᲚᲐ) lives on #/profile
-    lg.check('orders heading link "პროფილი", no logout on the list', (await L.txt(p, '.ord-top__out')) === 'პროფილი' && !(await p.$('#app [data-action="logout"]')));
-    await L.vis(p, '.ord-top__out').click(); await L.waitHash(p, /^#\/profile$/); await L.sleep(200);
+    // v4f: the პროფილი link of the orders list — the header link on desktop, the heading-row link (only-m) on mobile
+    lg.check('orders პროფილი link "პროფილი", no logout on the list', (await L.txt(p, L.profLinkSel(p))) === 'პროფილი' && !(await p.$('#app [data-action="logout"]')));
+    await L.vis(p, L.profLinkSel(p)).click(); await L.waitHash(p, /^#\/profile$/); await L.sleep(200);
     lg.check('profile logout button "ᲒᲐᲡᲕᲚᲐ"', (await L.appVisText(p, '[data-action="logout"]')) === 'ᲒᲐᲡᲕᲚᲐ', await L.appVisText(p, '[data-action="logout"]'));
     await L.vis(p, '[data-action="logout"]').click(); await L.sleep(300);
     lg.check('logout -> landing + toast', (await L.H(p)) === '#/' && (await L.toast(p)).includes('თქვენ გამოხვედით სისტემიდან'), [await L.H(p), await L.toast(p)]);

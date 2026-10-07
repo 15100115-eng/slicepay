@@ -316,7 +316,7 @@ body[data-screen="auth"],body[data-screen="delivery"],body[data-screen="orders"]
 .btn--secondary.is-loading{background:var(--c-white)}
 .btn--secondary .spinner{color:var(--c-primary)}
 /* forced colours drop backgrounds and inset shadows: every primary and outline button keeps a visible boundary */
-@media (forced-colors:active){ .btn{border:1px solid ButtonText} }
+@media (forced-colors:active){ .btn{border:1px solid ButtonText} .btn[aria-disabled="true"]{color:GrayText;border-color:GrayText} }   /* v4 finish r2: every aria-disabled .btn (the landing too) reads as disabled */
 
 /* ---------- account link: desktop header (purple, top-right) / landing (white, user icon) ---------- */
 .acct-link{position:absolute;top:22px;right:0;z-index:var(--z-header);display:inline-flex;align-items:center;gap:4px;height:24px;

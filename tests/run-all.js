@@ -5,6 +5,7 @@
 //   filter      only suites whose id contains one of the given substrings (e.g. `orders delivery`)
 //   --jobs      suites run in parallel (default 4; each starts its own Chromium)
 //   env APP_DIR to test another copy of the app (default: project root), TEST_OUT for the output folder.
+//   Relative APP_DIR / TEST_OUT values resolve from the directory this runner starts in (project root under npm).
 // Logs: tests/out/logs/<suite>.log. Each suite reports checks as lines starting with PASS / FAIL.
 // Suites are discovered: every *.test.js under tests/e2e, tests/functional and tests/regression runs (v4 added
 // e2e/profile.test.js and e2e/status.test.js); the parity step (tests/visual/parity.js) runs last, alone.
@@ -15,8 +16,13 @@ const { TESTS, APP_DIR, OUT_ROOT } = require('./lib/env');
 
 const args = process.argv.slice(2);
 const opt = (n, d) => { const a = args.find(x => x.startsWith('--' + n + '=')); return a ? a.split('=')[1] : d; };
-const JOBS = Math.max(1, +opt('jobs', process.env.TEST_JOBS || 4));
-const TIMEOUT = +opt('timeout', 600) * 1000;
+function posInt(name, raw) {   // --jobs=x / TEST_JOBS=abc / --timeout=0 used to give NaN and silently skip every suite
+  const s = String(raw).trim();
+  if (!/^\d+$/.test(s) || +s < 1) { console.error('--' + name + ' must be a positive integer (got "' + raw + '")'); process.exit(2); }
+  return +s;
+}
+const JOBS = posInt('jobs', opt('jobs', process.env.TEST_JOBS || '4'));
+const TIMEOUT = posInt('timeout', opt('timeout', '600')) * 1000;
 const NO_VISUAL = args.includes('--no-visual');
 const VISUAL_ONLY = args.includes('--visual-only');
 const filters = args.filter(a => !a.startsWith('--'));
@@ -45,7 +51,9 @@ function run(s) {
   return new Promise(resolve => {
     const t0 = Date.now();
     const log = path.join(LOGS, s.id.replace(/\//g, '__') + '.log');
-    const child = spawn(process.execPath, [s.file], { cwd: path.dirname(s.file), env: process.env });
+    // Pass the already-resolved absolute paths: a relative APP_DIR / TEST_OUT would otherwise be resolved
+    // again by each suite against its own cwd (tests/e2e, tests/visual, ...), not the caller's directory.
+    const child = spawn(process.execPath, [s.file], { cwd: path.dirname(s.file), env: { ...process.env, APP_DIR, TEST_OUT: OUT_ROOT } });
     let buf = '';
     child.stdout.on('data', d => { buf += d; });
     child.stderr.on('data', d => { buf += d; });
@@ -100,5 +108,7 @@ function run(s) {
   console.log(`\n${results.length - bad.length}/${results.length} suites green.`);
   for (const r of bad) console.log(`  ${r.status} ${r.id} (exit ${r.code}) — see ${path.relative(process.cwd(), r.log)}`);
   fs.writeFileSync(path.join(OUT_ROOT, 'summary.json'), JSON.stringify({ app: APP_DIR, when: new Date().toISOString(), results }, null, 1));
-  process.exitCode = bad.length || !results.length ? 1 : 0;
+  const missing = suites.filter(s => !results.some(r => r.id === s.id));
+  for (const s of missing) console.log(`  MISSING ${s.id} — never ran`);
+  process.exitCode = bad.length || missing.length || results.length !== suites.length || !results.length ? 1 : 0;
 })();

@@ -30,7 +30,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ck(w, 'delivered line', /ჩაბარდა: \d+ /.test(cards[1]) && cards[1].includes('+1'));
     ck(w, 'pills', await p.$$eval('.ord-card .status-pill', e => e.map(x => x.className + ':' + x.textContent)).then(a => a[0].includes('due:განბაჟება') && a[1].includes('done:ჩაბარდა')));
     // v4: the heading link is პროფილი (logout moved to #/profile)
-    ck(w, 'h1 + პროფილი link, no logout on the list', (await p.textContent('h1')) === 'ჩემი შეკვეთები' && (await p.evaluate(() => { const a = document.querySelector('.ord-top__out'); return a && a.tagName === 'A' && a.textContent.trim() === 'პროფილი' && a.getAttribute('href') === '#/profile'; })) && !(await p.$('#app [data-action="logout"]')));
+    // v4f: desktop reaches the profile through the header link only (the heading-row link is only-m), so პროფილი shows once
+    const PROF = w >= 900 ? '.d-head .acct-link--profile' : '.ord-top__out';
+    ck(w, 'h1 + პროფილი link, no logout on the list', (await p.textContent('h1')) === 'ჩემი შეკვეთები' && (await p.evaluate(s => { const a = [...document.querySelectorAll(s)].find(x => x.getClientRects().length); return a && a.tagName === 'A' && a.textContent.trim() === 'პროფილი' && a.getAttribute('href') === '#/profile'; }, PROF)) && !(await p.$('#app [data-action="logout"]')));
+    const profVisible = await p.evaluate(() => [...document.querySelectorAll('#app a')].filter(a => a.getClientRects().length && a.textContent.trim() === 'პროფილი').map(a => a.className));
+    ck(w, 'პროფილი visible exactly once on the list (' + (w >= 900 ? 'header' : 'heading row') + ')', profVisible.length === 1, profVisible);
     await p.screenshot({ path: OUT + '/list_' + w + '.png', fullPage: true });
     // horizontal overflow
     ck(w, 'no h-overflow list', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -110,7 +114,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     // logout: orders → პროფილი → ᲒᲐᲡᲕᲚᲐ on the profile page (v4)
     await p.evaluate(() => { location.hash = '#/orders?demo=1'; }); await sleep(300);
-    await vis('.ord-top__out').click(); await sleep(300);
+    await vis(PROF).click(); await sleep(300);
     ck(w, 'პროფილი → #/profile', (await hash()) === '#/profile', await hash());
     await vis('[data-action="logout"]').click(); await sleep(300);
     ck(w, 'logout → landing + toast', ((await hash()) === '#/' ) && (await p.evaluate(() => document.querySelector('#toast-root').textContent)).includes('თქვენ გამოხვედით სისტემიდან'));

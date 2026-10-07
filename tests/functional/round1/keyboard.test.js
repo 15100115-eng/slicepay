@@ -127,9 +127,9 @@ const L = require('../../lib/harness');
     await L.waitHash(p, /^#\/orders\/731954$/, 6000); await L.sleep(300);
     lg.check('order pay by keyboard -> detail paid', (await L.appText(p)).includes('გადახდილია'));
     lg.info('focus after order payment:', await L.active(p));
-    // logout by keyboard (v4): orders heading link პროფილი → #/profile → ᲒᲐᲡᲕᲚᲐ
+    // logout by keyboard (v4): orders პროფილი link (v4f: header on desktop, heading row on mobile) → #/profile → ᲒᲐᲡᲕᲚᲐ
     await L.go(p, '#/orders');
-    r = await tabTo(() => document.activeElement.matches('.ord-top__out'), 8);
+    r = await tabTo(W >= 900 ? () => document.activeElement.matches('.d-head .acct-link--profile') : () => document.activeElement.matches('.ord-top__out'), 8);
     lg.check('Tab to პროფილი with ring', r.n > 0 && r.stops[r.stops.length - 1].ok && (await L.active(p)).includes('პროფილი'), r.stops);
     await k('Enter'); await L.sleep(300);
     lg.check('Enter on პროფილი -> #/profile', (await L.H(p)) === '#/profile', await L.H(p));
