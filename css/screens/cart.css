@@ -54,6 +54,9 @@
 .cart-sum--m .cart-sum__mo-l{position:relative;top:-2px}
 .cart-sum__total{margin:0;color:var(--c-text-strong);white-space:pre}
 .cart-sum--m .cart-sum__total{margin-top:19px}
+/* v2: the courier fee inside the total (only once delivery is done and the fee > 0; v2f-r2-07) */
+.cart-sum__fee{margin:4px 0 0;color:var(--c-text-secondary);white-space:pre}
+.cart-sum--d .cart-sum__fee{text-align:right}
 
 .cart-checks{display:flex;flex-direction:column}
 .cart-m .cart-checks{margin-top:34px;padding-left:10px;gap:14px}
@@ -71,7 +74,7 @@
   .prod--m .prod__price-row .toggle .ico{margin-right:-7px}
 }
 @media (max-width:379.98px){
-  .prod__det--m .bd{margin-left:0}
+  .prod__det--m .bd{margin-left:0;padding-inline:10px}   /* room for the info button beside a 4-digit amount (cp2-04) */
   .add-form__row{flex-wrap:wrap}
   .add-form__row .btn--sm{width:100%}
 }
@@ -125,4 +128,32 @@
 @media (min-width:900px) and (max-width:999.98px){
   .cart-d__grid{grid-template-columns:minmax(0,1fr);row-gap:20px}
   .cart-sum--d{position:static;justify-self:end;width:100%;max-width:455px}
+}
+
+/* ---------- v2: "how is it calculated?" link + parcel ETA (FEATURES_SPEC §5, §6) ----------
+   Mobile: both go in the empty band between the checkboxes and the bottom bar, on the checkbox
+   pitch (row 20 + gap 14), text at the label x (box 18 + gap 15), so nothing designed moves
+   (m03: 105 px free, 62 px used; the spacer keeps its 38 px minimum).
+   Desktop: the link is a 3rd row of the checkbox list (pitch 29); the ETA sits centred under
+   the button, so the head, total, divider and checkboxes keep their designed positions. */
+.cart-explain{display:flex;margin:0}   /* flex: no strut line box around the inline link button (keeps the 20 px row) */
+.cart-explain__link.link{font-family:var(--font-body);font-stretch:87.5%;font-size:14px;line-height:20px;text-align:left}
+
+.cart-m__extra{padding-left:10px;margin-top:14px}
+.cart-m__extra .cart-explain{padding-left:33px}
+.cart-m__extra .cart-eta{gap:15px;margin-top:8px}   /* (row recipe: base .eta-row) */
+
+.cart-sum--d .cart-explain{padding:9px 0 0 48px}
+.cart-sum--d .cart-explain + .cart-sum__btn{margin-top:28px}
+
+/* ---------- short phones: the bottom bar sticks to the viewport bottom (cp-02) ----------
+   The v2 rows push the bar below the fold at 375x667 / 360x640. Sticky keeps it in view there while it
+   stays in flow (same place as v1/design) whenever the page fits. 90 px box = 60 px bar + the page's 30 px
+   bottom padding, pulled back with the negative margin so the static layout is unchanged. The fade lets
+   content scroll under it. While the URL form is open (soft keyboard) the bar stays in flow. */
+@media (max-width:899.98px){
+  /* the sticky recipe and its scroll padding are the shared .m-bar--sticky (base.css, REV2R2-07) */
+  .cart-m:has(#add-form) .m-bar{position:static}
+  .cart-m:has(#add-form) .m-bar::before{display:none}
+  html:has(.cart-m #add-form){scroll-padding-bottom:0}
 }

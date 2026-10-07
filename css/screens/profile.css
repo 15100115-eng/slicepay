@@ -1,0 +1,79 @@
+/* =====================================================================
+   Profile  #/profile  (docs/specs/V4_SPEC.md §B)
+   Not in the Figma file: the orders scaffold (white mobile page + bottom
+   bar ᲣᲙᲐᲜ; desktop #f4f4f4 page, standard header, one centred 645 px
+   column at the orders' y) with white section cards (cart-card style:
+   1px #d3d3d3, r 8) holding auth fields (.field, 50 tall, floating labels).
+   Section labels are the delivery form's 16 px semibold (forms), not the
+   orders detail's Mtavruli caps (read-only receipts).
+   Rhythm: label → first field 16 (room for the floated label), field →
+   field 16, last field → button 24; an error line adds 21 (§3.24).
+   ===================================================================== */
+
+/* ---------- page / column ---------- */
+.prof{padding:34px var(--m-card-x) 0}
+.prof__h{color:var(--c-text);padding:0 2px}
+.prof__h:focus{outline:none}
+.prof-secs{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+
+/* ---------- section cards ---------- */
+.prof-sec{padding:20px 19px 22px;container-type:inline-size}
+.prof-sec__h{font-size:var(--fs-body-16);line-height:24px;font-weight:var(--fw-semibold);color:var(--c-text)}
+.prof-form{display:block;margin-top:16px}
+.prof-f + .prof-f,.prof-names + .prof-f{margin-top:16px}
+/* first / last side by side as on the register and delivery forms; stacked when a column would be < 140 px */
+.prof-names{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px}
+.prof-names > .prof-f{margin-top:0}
+@container (max-width:299.98px){
+  .prof-names{grid-template-columns:minmax(0,1fr);row-gap:16px}
+}
+.prof-btn{margin-top:24px}
+/* the toast lands at the top of the viewport (below): a focused field / pressed button that would sit under it is
+   scrolled clear of the toast's band (profile.js keepClear + the browser's own focus scrolling) */
+.prof .field__input,.prof .btn,.prof .link{scroll-margin-top:72px;scroll-margin-bottom:24px}
+
+/* ---------- phone ---------- */
+/* current number (semibold, the receipt's digits) with "ნომრის შეცვლა" on the right of the same row */
+.prof-phone{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px;margin-top:8px}
+.prof-phone__v{font-size:var(--fs-body-16);line-height:24px;font-weight:var(--fw-semibold);color:var(--c-text);white-space:nowrap;font-variant-numeric:tabular-nums}
+.prof-phone__change{flex:none;font-size:var(--fs-body);line-height:var(--lh-body);white-space:nowrap}
+/* the form opens under the number: a hairline separates "current" from "new" */
+.prof-phone + .prof-form{margin-top:16px;padding-top:16px;border-top:1px solid var(--c-gray-150)}
+.prof-note{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text-secondary);margin-bottom:16px}
+.prof-note b{color:var(--c-text);font-weight:var(--fw-semibold);white-space:nowrap}
+/* resend + its "(0:30)" countdown: left under the code field, as on the verify screen */
+.prof-links{margin-top:12px;font-size:var(--fs-body);line-height:var(--lh-body);text-align:left}
+.prof-links .link[aria-disabled="true"]{font-variant-numeric:tabular-nums}
+.prof-links + .prof-btn{margin-top:20px}
+.prof-cancel{margin-top:16px;font-size:var(--fs-body);line-height:var(--lh-body);text-align:center}
+
+/* ---------- logout ---------- */
+.prof-out{margin-top:24px}
+
+/* ---------- toast: top of the viewport on phones ----------
+   The page is taller than a phone screen and the bar is not sticky, so the generic bottom spot (106) floats over
+   whichever card is being edited — often the password fields or the code field with the keyboard up. As on orders /
+   delivery it sits at the top (12–56) and lets taps through; the edited control is kept below it (keepClear). */
+@media (max-width:899.98px){
+  body[data-screen="profile"] #toast-root{bottom:auto;top:12px}
+  body[data-screen="profile"] .toast{transform:translateY(-8px);pointer-events:none}
+}
+
+/* ---------- narrow phones ---------- */
+@media (max-width:359.98px){
+  .prof{padding-inline:12px}
+  .prof-sec{padding-inline:14px}
+}
+
+/* ---------- desktop ---------- */
+@media (min-width:900px){
+  .prof-page{max-width:none;display:block;min-height:0;padding-bottom:80px}
+  .prof{width:min(645px,calc(100% - 80px));margin:73px auto 0;padding:0}
+  .prof__h{padding:0}
+  .prof-secs{gap:20px}
+  .prof-sec{padding:24px}
+  .prof-names{column-gap:20px}
+  .prof-f + .prof-f,.prof-names + .prof-f{margin-top:20px}
+  .prof-names > .prof-f{margin-top:0}
+  .prof-out{margin-top:32px}
+}

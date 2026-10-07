@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "slicepay",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/sosogomareli/Desktop/Claude Code/slicepay/tools/serve.js"],
+      "port": 8765
+    }
+  ]
+}

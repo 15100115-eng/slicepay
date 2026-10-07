@@ -1,0 +1,17 @@
+{
+  "name": "slicepay",
+  "version": "0.3.0",
+  "private": true,
+  "description": "SlicePay — clickable prototype (plain HTML/CSS/JS, opens from file://). The package only holds the dev tooling: tests and a static preview server.",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "test:visual": "node tests/visual/parity.js",
+    "serve": "node tools/serve.js"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

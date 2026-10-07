@@ -3,6 +3,12 @@
    ===================================================================== */
 .landing{min-height:100vh;min-height:100dvh;background:var(--grad-landing-m);color:var(--c-white)}
 .landing :focus-visible{outline-color:var(--c-focus-on-dark)}
+/* v2 account link: top-right on the gradient, aligned to the content gutter (22 mobile / container edge desktop);
+   44px tall hit area, vertically centred on y 34 like the desktop header's links */
+.landing{position:relative}
+.landing__acct{position:absolute;top:12px;left:0;right:0;z-index:var(--z-header);display:flex;justify-content:flex-end;
+  width:calc(min(100%, var(--m-max)) - 44px);margin-inline:auto;pointer-events:none}
+.landing__acct .acct-link{pointer-events:auto;height:44px;padding:0 4px;margin-right:-4px}
 .landing__inner{display:flex;flex-direction:column;max-width:var(--m-max);margin-inline:auto;min-height:100vh;min-height:100dvh;padding:60px 22px 68px}
 .landing__logo{height:76px;flex:none}
 .landing__stage{position:relative;height:172px;margin-top:120px;flex:none}
@@ -57,16 +63,27 @@
 }
 /* short phones: tighten vertical rhythm so the CTA stays above the fold */
 @media (max-width:899.98px) and (max-height:700px){
-  .landing__inner{padding-top:40px;padding-bottom:40px}
-  .landing__stage{margin-top:56px}
+  /* account link 40px tall at y 4–44 so its focus ring (2px + 2px offset) stays on screen; the logo moves down
+     14px (y 54) to clear it while padding-top + stage margin keep the title/input/CTA where they were */
+  .landing__acct{top:4px}
+  .landing__acct .acct-link{height:40px}
+  .landing__inner{padding-top:54px;padding-bottom:40px}
+  .landing__stage{margin-top:42px}
   .landing__spacer{min-height:14px}
 }
 /* tablet portrait (mobile layout): cap the spacer so the form stays near the title; leftover height falls below the CTA */
 @media (min-width:600px) and (max-width:899.98px){
   .landing__spacer{max-height:240px}
 }
+/* mobile layout: the logout toast sits in the empty band between the title and the input instead of the
+   default bottom:106px, where it covered the input/CTA (landscape keeps the base position) */
+@media (max-width:899.98px) and (min-height:481px){
+  body[data-screen="landing"] #toast-root{bottom:auto;top:calc(50% + 16px)}
+}
 /* landscape phones: compact logo/stage so the input and CTA fit above the fold (>=360 tall); the ticker replaces the faded title in the same 88px stage */
 @media (max-width:899.98px) and (max-height:480px){
+  .landing__acct{top:6px}
+  .landing__acct .acct-link{height:44px}
   .landing__inner{padding-top:16px;padding-bottom:16px}
   .landing__logo{height:48px}
   .landing__logo .logo{width:71px;height:48px;margin-left:calc(50% - 36px)}
@@ -97,6 +114,7 @@
   .ticker__stack[data-step="show1"]{transition-delay:180ms}
   .landing__spacer{display:none}
   .landing__form{width:min(var(--d-container),calc(100% - 80px));margin:99px auto 0;align-items:center}
+  .landing__acct{width:min(var(--d-container),calc(100% - 80px))}
   .url-wrap{width:100%}
   .url-input{padding-right:20px}
   .landing__form .btn{width:var(--d-form-w)}
@@ -108,4 +126,12 @@
   .landing__inner{padding:24px 0 0}
   .landing__stage{margin-top:24px}
   .landing__form{margin-top:32px}
+}
+/* ...there the logo moves up to y 24-100 and the shared desktop toast (top:12px, 44px tall) covers it, so the
+   logout toast goes to the bottom (as on the cart) and rises in from below (LS-R2-01). Only from 500px tall:
+   bottom:24px then clears the CTA and its error line (bottom 426); below 500 the toast would cover the CTA, so
+   it keeps the top spot over the decorative logo */
+@media (min-width:900px) and (min-height:500px) and (max-height:624.98px){
+  body[data-screen="landing"] #toast-root{top:auto;bottom:24px}
+  body[data-screen="landing"] .toast{transform:translateY(8px)}
 }

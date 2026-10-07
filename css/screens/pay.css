@@ -33,6 +33,11 @@
 .btn--card .spinner{width:20px;height:20px;margin:-10px 0 0 -10px}
 .paycard.is-processing .card-input{opacity:.6}
 .paypage__spacer{min-height:24px}
+/* v2 order mode (#/pay?order=<id>): what is being paid, above "Pay with" */
+.paycard__due{margin:-2px 0 22px;padding-bottom:18px;border-bottom:1px solid var(--c-gray-150)}
+.paycard__due-amt{font-size:18px;line-height:24px;font-weight:var(--fw-bold);color:var(--c-text)}
+.paycard__due-v{white-space:nowrap}
+.paycard__due-ref{margin-top:2px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text-secondary)}
 @media (max-width:359.98px){
   .paycard{width:calc(100% - 32px);padding-inline:16px}
   .card-input{padding:0 12px;background-position:12px center}

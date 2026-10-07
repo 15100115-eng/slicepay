@@ -6,9 +6,11 @@
 .pay-total{color:var(--c-text)}
 /* glyph-only nudge: design ink sits 1px lower than the 36px line box puts it (layout unchanged) */
 .pay-head .t-h-total,.pay-head .pay-total{position:relative;top:1px}
-.pay-toggle-row{display:flex;justify-content:flex-end;height:24px}
-.pay-toggle-row .toggle{line-height:24px}
+.pay-toggle-row{display:flex;justify-content:space-between;align-items:center;gap:12px;height:24px}
+.pay-toggle-row .toggle{line-height:24px;margin-left:auto}
 .pay-bd{background:var(--c-gray-150);border-radius:var(--r-8);height:150px}
+/* v2: 6 rows (+ მიწოდების ფასი) = 6 × 26 + 20 */
+.pay-bd.pay-bd--fee{height:176px}
 .pay-bd.is-entering{animation:pay-bd-in var(--t-base) var(--ease)}
 /* collapse mirrors the cart breakdown: 200ms fade/slide out in sync with the caret, then hidden (§3.13) */
 .pay-bd.is-leaving{animation:pay-bd-out var(--t-base) var(--ease) forwards;pointer-events:none}
@@ -16,6 +18,17 @@
 @keyframes pay-bd-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @keyframes pay-bd-out{to{opacity:0;transform:translateY(-4px)}}
 @media (prefers-reduced-motion:reduce){.pay-bd.is-leaving{animation:none !important}}
+
+/* ---------- v2: monthly amount (left of the details toggle), term chips, ETA ---------- */
+/* cart-summary data in the designed .t-body-16 role (cp-10): prices are 400 (§2.2); the label keeps the
+   designed cart-label colour. Order: mobile [amount, label], desktop [label, amount] (as the cart) */
+.pay-mo{display:flex;align-items:baseline;gap:8px;min-width:0;white-space:nowrap;font-size:16px;line-height:24px}
+.pay-mo__v{font-weight:var(--fw-regular);color:var(--c-text-strong)}
+.pay-mo__l{color:var(--c-text-muted)}
+
+/* ETA row with the truck icon: the shared .eta-row (base.css), as in the cart summary (cp-04, REV2R2-07) */
+
+/* cp2-02: the term radio covering its whole chip is now in base.css (.term-chip > input.sr-only) */
 
 /* method card */
 .method{position:relative;display:grid;background:var(--c-white);border:1px solid var(--c-border);border-radius:var(--r-8);cursor:pointer;
@@ -38,7 +51,7 @@
 .pay-m .pay-head{padding:0 46px 0 40px}
 /* ₾ right side-bearing: design ink right edge sits at 382 (decision #75) */
 .pay-m .pay-head .pay-total{margin-right:-2px}
-.pay-m .pay-toggle-row{padding-right:46px}
+.pay-m .pay-toggle-row{padding:0 46px 0 40px}
 .pay-m .pay-toggle-row .toggle{margin-right:-9px}
 .pay-m .pay-bd{margin:7px var(--m-card-x) 0;padding:10px 32px 10px 13px}
 .pay-m .methods{display:grid;grid-auto-rows:1fr;gap:20px;padding:0 var(--m-card-x);margin-top:25px}
@@ -49,12 +62,20 @@
 /* titles wrap only below ~350px (compact layout keeps them on one line from 350–428); 1px glyph nudge matches design baseline */
 .pay-m .method__title{white-space:normal;position:relative;top:1px}
 .pay-m .method__sub{margin-top:4.2px}
+.pay-m .terms{margin:28px var(--m-card-x) 0}
 .pay-m .pay-notes{margin:15.6px 0 0 var(--m-card-x)}
+.pay-m .pay-eta-row{gap:4px;margin:10px var(--m-card-x) 0}   /* icon 14–32, text at 36 = bullet-notes text x */
+.pay-m .terms + .pay-eta-row{margin-top:16px}
 .pay-m__spacer{min-height:30.4px}
+/* the bottom bar sticks to the viewport bottom (cp-01): the v2 term block pushes it below the fold at
+   428x735 and on shorter phones. Same recipe as the cart: 90 px box = 60 px bar + the page's 30 px bottom
+   padding, pulled back by the negative margin so a non-scrolling layout is unchanged. No text inputs here,
+   so there is no soft-keyboard reason to keep it in flow (§3.17). */
+/* (the sticky recipe and its scroll padding are the shared .m-bar--sticky in base.css, REV2R2-07) */
 /* compact cards from <400px so the longest title fits one line at every common phone width */
 @media (max-width:399.98px){
   .pay-m .pay-head{padding:0 24px}
-  .pay-m .pay-toggle-row{padding-right:24px}
+  .pay-m .pay-toggle-row{padding:0 24px}
   .pay-m .method{column-gap:10px;padding:15px}
   .pay-m .method__radio{margin-top:13px}
   .pay-m .method__logo{width:64px;height:40px;margin-top:5px}
@@ -85,7 +106,7 @@
 .pay-d .method__sub{margin-top:15.3px}
 
 .pay-sum{padding:19px}
-/* approximates the dropped narrow-bold figures (BUILD_NOTES 72): ink 1192–1261 */
+/* approximates the dropped narrow-bold figures (docs/ARCHITECTURE.md, fonts): ink 1192–1261 */
 .pay-sum .pay-total{letter-spacing:-.66px;margin-right:-1.3px}
 .pay-sum .pay-toggle-row{margin:6px -2px 0 0}
 .pay-sum .pay-bd{margin-top:25px;padding:10px 14px 10px 13px}
@@ -96,8 +117,25 @@
 .pay-sum.is-open .pay-sum__btn{margin-top:25.43px}
 .pay-sum.no-notes .pay-sum__btn{margin-top:36px}
 .pay-sum.no-notes.is-open .pay-sum__btn{margin-top:32px}
+/* v2: ETA centred under the button with the truck icon, as in the desktop cart summary (cp-04) */
+/* (.eta-row--c in base.css) */
+/* v2 §7: term chips in the empty area under the three method cards (full 645 column) */
+.pay-d .terms{margin-top:40px}
+/* 3-chip edges line up with the three method cards above (cp-03); the 5-chip tbc set still fits */
+.pay-d .terms__chips{column-gap:var(--d-method-gap)}
 
+/* 900–1179 (cpR3-01): keep the summary + CTA in a 400 px right column like the cart, and lay the method
+   cards out as horizontal rows using the mobile card recipe, so the button stays above the fold */
 @media (min-width:900px) and (max-width:1179.98px){
-  .pay-d__grid{grid-template-columns:minmax(0,1fr);row-gap:20px}
-  .pay-sum{justify-self:end;width:100%;max-width:455px}
+  .pay-d__grid{grid-template-columns:minmax(0,1fr) 400px}
+  .pay-d .methods{grid-template-columns:minmax(0,1fr);row-gap:20px}
+  .pay-d .method{display:grid;grid-template-columns:24px 81px minmax(0,1fr);column-gap:12px;align-items:start;height:auto;min-height:100px;padding:19px;text-align:left}
+  .pay-d .method__radio{order:0;margin-top:12px}
+  .pay-d .method__text{align-items:flex-start;padding:.4px 0 0 4px}
+  .pay-d .method__title{margin-top:0}
+  .pay-d .method__title br{display:none}
+  .pay-d .method__sub{margin-top:4.2px}
+  .pay-d .terms{margin-top:28px}
+  .pay-d .terms__chips{column-gap:8px}
+  .pay-sum{position:sticky;top:24px}
 }

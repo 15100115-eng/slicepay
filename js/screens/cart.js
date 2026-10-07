@@ -1,6 +1,6 @@
 /* =====================================================================
    SlicePay — screens/cart.js   route: #/cart
-   QA: ?demo=1 &weight=0|1 &customs=0|1 &details=0|1 &add=1 &addTile=below
+   QA: ?demo=1 &weight=0|1 &customs=0|1 &details=0|1 &add=1 &addTile=below &term=N &info=weight|customs|all
    ===================================================================== */
 (function () {
   'use strict';
@@ -17,7 +17,7 @@
     var open = !!st.ui.details[p.id];
     var bdId = 'bd-' + p.id;
     var bd = UI.breakdown({ item: pr.item, weight: pr.weight, customs: pr.customs, service: pr.service, total: pr.payable,
-      deferWeight: pr.deferWeight, deferCustoms: pr.deferCustoms }, 'amount-first', { long: desk });
+      deferWeight: pr.deferWeight, deferCustoms: pr.deferCustoms }, 'amount-first', { long: desk, productId: p.id });
     var row =
       '<div class="prod__row">' + UI.thumb(p) +
         '<div class="prod__info">' +
@@ -56,11 +56,36 @@
       '</div>';
   }
 
+  /* v2: "how is it calculated?" link (opens UI.explain, delegated in ui.js) — sits under the checkboxes, at the label x */
+  function explainLink() { return '<p class="cart-explain">' + UI.explainLink('cart-explain__link') + '</p>'; }
+  /* v2: parcel ETA line (§3+6): placed where it moves no designed element. v3 (v2f-r3-02): the window is the
+     summary's own (s.eta), i.e. the same confirmed delivery as the fee row and 'სულ' — never an unconfirmed draft */
+  function eta(desk, s) {
+    // the truck sits in the checkbox column (mobile) / before the centred text (desktop); decorative
+    return UI.etaRow(s.eta, { cls: 'cart-eta', lineCls: 'cart-eta__line', id: 'cart-eta', centred: desk });
+  }
+  /* v2: the summary shows the chosen term (state.term) */
+  function termLabel(t) { return UI.termLabel(t.term); }
+
+  /* v3 (v2f-r3-02): ONE source of truth. The whole summary — the 'მიწოდების ფასი' row, 'სულ', the monthly and
+     'სავარაუდო მიღება' — comes from SP.checkoutSummary, i.e. from the CONFIRMED delivery (SP.confirmedDelivery),
+     exactly as on payment / success / orders: once a delivery with a fee is confirmed the fee is in the total and
+     the monthly and the row explains it (cp-05, v2f-r2-07); before that it is the default pickup (no fee, base ETA).
+     deliveryFee:null keeps the live state from ever being read as an order snapshot. → {fee, totals, eta, etaText, …} */
+  function summary(st) {
+    return SP.checkoutSummary(Object.assign({}, st, { deliveryFee: null }));
+  }
+  function feeText(s) { return 'მიწოდების ფასი  ' + fmt.money(s.fee); }
+  function feeLine(s) {
+    return s.fee > 0 ? '<p class="t-body cart-sum__fee">' + feeText(s) + '</p>' : '';
+  }
+
   /* persistent polite status: survives in-place price updates, so total changes are announced */
   function status() { return '<p class="sr-only" id="cart-status" role="status" aria-live="polite" aria-atomic="true"></p>'; }
 
   /* ---------------- mobile ---------------- */
-  function renderM(st, t) {
+  function renderM(st, s) {
+    var t = s.totals;
     var prods = st.products.map(function (p, i) { return (i ? '<hr class="prod-sep">' : '') + product(p, false, st); }).join('');
     var last = st.products[st.products.length - 1];
     var lastOpen = last && st.ui.details[last.id];
@@ -78,14 +103,15 @@
           '</section>' +
           '<section class="card cart-sum cart-sum--m" aria-labelledby="sum-h">' +
             '<h2 class="t-h-total" id="sum-h">' + UI.mt('total') + '</h2>' +
-            '<div class="cart-sum__monthly"><span class="t-price-lg cart-sum__mo">' + fmt.money(t.monthly) + '</span><span class="t-body-16 cart-sum__mo-l">4 თვეში</span></div>' +
-            '<p class="t-body-16 cart-sum__total">სულ  ' + fmt.money(t.total) + '</p>' +
+            '<div class="cart-sum__monthly"><span class="t-price-lg cart-sum__mo">' + fmt.money(t.monthly) + '</span><span class="t-body-16 cart-sum__mo-l">' + termLabel(t) + '</span></div>' +
+            '<p class="t-body-16 cart-sum__total">სულ  ' + fmt.money(t.total) + '</p>' + feeLine(s) +
           '</section>' +
           checks(st) +
+          '<div class="cart-m__extra">' + explainLink() + eta(false, s) + '</div>' +
           status() +
         '</main>' +
         '<div class="m-spacer cart-m__spacer"></div>' +
-        UI.mBar({ label: UI.mt('restart'), action: 'restart' }, { label: UI.mt('next'), action: 'next' }) +
+        UI.mBar({ label: UI.mt('restart'), action: 'restart' }, { label: UI.mt('next'), action: 'next' }, { sticky: true }) +
       '</div>';
   }
 
@@ -96,7 +122,8 @@
       '<img class="cart-tile__ico" src="assets/icons/' + (below ? 'plus-circle-gray.svg' : 'plus-circle-white.svg') + '" width="43" height="43" alt="">' +
       '<span class="t-body cart-tile__label">დაამატე სხვა პროდუქტი</span></button>';
   }
-  function renderD(st, t, below) {
+  function renderD(st, s, below) {
+    var t = s.totals;
     var prods = st.products.map(function (p) { return product(p, true, st); }).join('');
     return '' +
       '<div class="d-page">' + UI.dHead('/') +
@@ -107,12 +134,14 @@
             '<aside class="card cart-sum cart-sum--d" aria-labelledby="sum-h">' +
               '<div class="cart-sum__head">' +
                 '<h2 class="t-h-total" id="sum-h">' + UI.mt('total') + '</h2>' +
-                '<div class="cart-sum__right"><span class="t-body-16 cart-sum__mo-l">4 თვეში</span><span class="t-price-lg cart-sum__mo">' + fmt.money(t.monthly) + '</span></div>' +
+                '<div class="cart-sum__right"><span class="t-body-16 cart-sum__mo-l">' + termLabel(t) + '</span><span class="t-price-lg cart-sum__mo">' + fmt.money(t.monthly) + '</span></div>' +
               '</div>' +
-              '<p class="t-body-16 cart-sum__total">სულ  ' + fmt.money(t.total) + '</p>' +
+              '<p class="t-body-16 cart-sum__total">სულ  ' + fmt.money(t.total) + '</p>' + feeLine(s) +
               '<hr class="cart-sum__div">' +
               checks(st) +
+              explainLink() +
               '<button type="button" class="btn cart-sum__btn" data-action="next"><span class="btn__label">' + UI.mt('next') + '</span></button>' +
+              eta(true, s) +
             '</aside>' +
           '</div>' +
           status() +
@@ -122,8 +151,8 @@
 
   function render(ctx) {
     if (ctx.entry) { clearTimeout(addTimer); addTimer = null; addOpen = ctx.query.add === '1'; addBusy = false; addErr = null; }
-    var st = ctx.state, t = SP.totals(st);
-    return ctx.desk ? renderD(st, t, ctx.query.addTile === 'below') : renderM(st, t);
+    var st = ctx.state, s = summary(st);
+    return ctx.desk ? renderD(st, s, ctx.query.addTile === 'below') : renderM(st, s);
   }
 
   /* ---------------- behaviour ---------------- */
@@ -192,7 +221,8 @@
         var a = act.getAttribute('data-action');
         if (a === 'restart') SP.reset();
         // a known (remembered) user signs in; a new one registers (R2-05)
-        if (a === 'next') SP.go(SP.isAuthed() ? '/payment' : (SP.api.remembered() ? '/login' : '/register'));
+        // v2: a signed-in user continues to the delivery step
+        if (a === 'next') SP.go(SP.isAuthed() ? '/delivery' : (SP.api.remembered() ? '/login' : '/register'));
       }
     });
 
@@ -234,7 +264,7 @@
 
   /** re-price every product row + the summary without re-rendering the screen */
   function refreshPrices(root, desk) {
-    var st = SP.state(), t = SP.totals(st);
+    var st = SP.state(), s = summary(st), t = s.totals;
     st.products.forEach(function (p) {
       var art = root.querySelector('.prod[data-id="' + p.id + '"]'); if (!art) return;
       var tmp = document.createElement('div'); tmp.innerHTML = product(p, desk, st);
@@ -244,9 +274,17 @@
       if (nb && ob) ob.replaceWith(nb);
     });
     root.querySelectorAll('.cart-sum__mo').forEach(function (e) { e.textContent = fmt.money(t.monthly); });
-    root.querySelectorAll('.cart-sum__total').forEach(function (e) { e.textContent = 'სულ  ' + fmt.money(t.total); });
-    var s = root.querySelector('#cart-status');
-    if (s) s.textContent = 'ჯამი ' + fmt.money(t.total) + ', თვეში ' + fmt.money(t.monthly);
+    root.querySelectorAll('.cart-sum__total').forEach(function (e) {
+      e.textContent = 'სულ  ' + fmt.money(t.total);
+      // the fee row and the ETA follow the same summary, so they can never describe another delivery than 'სულ'
+      var f = e.nextElementSibling && e.nextElementSibling.classList.contains('cart-sum__fee') ? e.nextElementSibling : null;
+      if (s.fee > 0) { if (f) f.textContent = feeText(s); else e.insertAdjacentHTML('afterend', feeLine(s)); }
+      else if (f) f.remove();
+    });
+    root.querySelectorAll('#cart-eta .eta-line__v').forEach(function (e) { e.textContent = s.etaText; });
+    var live = root.querySelector('#cart-status');
+    root.querySelectorAll('.cart-sum__mo-l').forEach(function (e) { e.textContent = termLabel(t); });
+    if (live) live.textContent = 'ჯამი ' + fmt.money(t.total) + ', ' + termLabel(t) + ' ' + fmt.money(t.monthly);
   }
 
   /** expand/collapse a breakdown: height, margin and opacity ease together over --t-base, in sync with the caret (§3.13) */

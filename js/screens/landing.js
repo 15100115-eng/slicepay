@@ -1,6 +1,7 @@
 /* =====================================================================
    SlicePay — screens/landing.js   route: #/
    States: empty (store carousel) · filled · loading (ticker) · error
+   v2: top-right account link (UI.accountLink('light')) in every state
    QA: ?url=<encoded>  &loading=1 [&msg=0|1|2] [&run=1]  &err=1  &anim=0
    ===================================================================== */
 (function () {
@@ -22,6 +23,8 @@
     var step0 = !loading ? 'off' : q.run === '1' ? 'enter' : (q.msg === '1' ? 'show1' : q.msg === '2' ? 'swap' : 'enter');
     return '' +
       '<main class="landing" data-state="' + st + '">' +
+      // v2: account entry point, top-right on the gradient (ჩემი შეკვეთები / შესვლა → /login?next=/orders)
+      '<nav class="landing__acct" aria-label="ანგარიში">' + UI.accountLink('light') + '</nav>' +
       '<div class="landing__inner">' +
         '<div class="landing__logo"><img class="logo" src="assets/icons/logo-white.svg" width="113" height="76" alt="SlicePay"></div>' +
         '<div class="landing__stage">' +

@@ -1,5 +1,6 @@
 /* =====================================================================
    Auth  #/register #/login #/recover #/recover/code  (m08–m11, d08–d11)
+         + v2 #/register/verify (no Figma frame: built from the m11/d11 layout)
    DESIGN_SYSTEM.md §4.3 — one DOM, mobile bottom-anchored bar,
    desktop inline 360 px form.
    ===================================================================== */
@@ -25,6 +26,17 @@
 .auth__check .err{margin-left:26px}
 .auth__bar .btn{width:100%}
 
+/* ---------- v2 #/register/verify (phone verification) — the recover-code layout plus a lead line ---------- */
+.auth__lead{margin:10px 0 0;padding:0 16px;text-align:center;color:var(--c-text-secondary);text-wrap:balance}
+.auth__phone{color:var(--c-text);font-weight:var(--fw-semibold);white-space:nowrap}
+.auth-page--verify .auth__fields{margin-top:26px}
+/* mobile: resend (with its "(0:30)" countdown) and "ნომრის შეცვლა" stacked, left-aligned — side by side they
+   would not fit the 308 px column at 375 once the countdown shows, and the row would jump when it ends */
+.auth__links{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin:15.57px 0 0}
+.auth__links .link{text-align:left}
+.auth__change{white-space:nowrap}
+.auth__links .link[aria-disabled="true"]{font-variant-numeric:tabular-nums}
+
 /* < 360: base.css narrows .m-bar to 16 px gutters — keep the form column on the same edges */
 @media (max-width:359.98px){
   .auth__fields{padding:0 16px}
@@ -39,6 +51,8 @@
   .auth__note{margin-right:-2px}
 }
 
+/* ---------- toast placement: base.css (#toast-root rules) ---------- */
+
 /* ---------- desktop ---------- */
 @media (min-width:900px){
   .auth-page{max-width:none;padding-bottom:80px;display:block;min-height:0}
@@ -46,6 +60,9 @@
   .auth__form{display:block;width:var(--d-form-w);margin:0 auto}
   .auth__h{padding:0;margin-top:43px}
   .auth__fields{padding:0}
+  .auth__lead{padding:0}
+  /* desktop 360 px column: both links on one row (resend + countdown ≈ 230 px, change ≈ 105 px) */
+  .auth__links{flex-direction:row;justify-content:space-between;align-items:baseline;gap:16px}
   .auth__names{column-gap:20px}
   .auth__spacer{display:none}
   .auth__check{padding:0;margin:0}

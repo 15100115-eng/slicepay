@@ -1,0 +1,199 @@
+/* =====================================================================
+   My orders  #/orders, #/orders/:id  (FEATURES_SPEC.md §4)
+   Not in the Figma file: built from the cart card (white, 1px #d3d3d3,
+   r 8, 73/65 px thumb + badge), the success receipt (Mtavruli section
+   heads, "1x" / price columns, muted bank label) and the auth scaffold
+   (white mobile page + bottom bar, #f4f4f4 desktop page + header).
+   Desktop: one centred 645 px column at y 209 (the cart's left column).
+   ===================================================================== */
+
+/* ---------- page / column ---------- */
+.ord{padding:34px var(--m-card-x) 0}
+.ord-spacer{min-height:24px}
+/* bank prefix in the payment card: #666 (5.7:1) like the card's other labels (.ord-kv dt); the receipt's #9e9e9e is 2.7:1 */
+.ord-muted{color:var(--c-text-secondary)}
+
+/* heading row: title left, logout (list) right */
+.ord-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding:0 2px}
+.ord-top__h{min-width:0;color:var(--c-text);overflow-wrap:anywhere}
+.ord-top__h:focus{outline:none}
+.ord-top__out{flex:none;font-size:var(--fs-body);line-height:var(--lh-body)}   /* Link role 14/20 (base .link is font:inherit) */
+.ord-top--detail{justify-content:flex-start}
+.ord-top--detail .ord-top__h{margin-right:auto}
+.ord-top__date{flex-basis:100%;margin-top:-4px;color:var(--c-text-secondary)}
+
+/* ---------- list ---------- */
+.ord-list{display:flex;flex-direction:column;gap:16px;margin-top:24px}
+.ord-card{position:relative;padding:16px 16px 18px 19px;transition:border-color var(--t-fast) var(--ease);container:ordcard/inline-size}
+.ord-card:hover{border-color:var(--c-method-hover)}
+/* the status pill always stays top-right; when "#id · date" + pill would not fit, the date drops under the id */
+.ord-card__top{display:flex;flex-wrap:nowrap;align-items:flex-start;justify-content:space-between;gap:6px 12px}
+.ord-card__top .status-pill{flex:none}
+.ord-card__h{min-width:0;font-size:var(--fs-body-16);line-height:24px;font-weight:var(--fw-semibold)}
+.ord-card__link{color:var(--c-text);text-decoration:none;border-radius:var(--r-4)}
+/* the whole card is the link's hit area */
+.ord-card__link::after{content:"";position:absolute;inset:0;border-radius:var(--r-8);z-index:var(--z-raised)}
+.ord-card:hover .ord-card__id{text-decoration:underline;text-decoration-thickness:.7px;text-underline-offset:2px}
+.ord-card__date{font-size:var(--fs-body);font-weight:var(--fw-regular);color:var(--c-text-secondary)}
+@supports selector(:has(*)){
+  .ord-card__link:focus-visible{outline:none}
+  .ord-card:has(.ord-card__link:focus-visible){outline:var(--focus-ring);outline-offset:3px}
+}
+.ord-card__body{display:grid;grid-template-columns:65px minmax(0,1fr) 24px;column-gap:13px;align-items:start;margin-top:14px}
+.ord-card .thumb{width:65px;height:65px}
+.ord-card .badge{width:27px;height:27px;left:-14px;top:51px}
+.ord-card__info{min-width:0}
+.ord-card__names{display:flex;gap:6px;min-width:0;color:var(--c-text)}
+.ord-card__name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ord-card__more{flex:none;color:var(--c-text-secondary)}   /* new text: #666 (5.7:1), REV2-03 */
+.ord-card__sum{margin-top:6px;color:var(--c-text-strong)}
+.ord-card__eta{margin-top:4px}
+.ord-card__chev{width:24px;height:24px;color:var(--c-caret);transform:rotate(-90deg);align-self:center}
+.ord-card:hover .ord-card__chev{color:var(--c-m3-off)}
+
+/* orange "გადასახდელია: 350₾" */
+.ord-due-badge{display:inline-flex;align-items:center;margin-top:10px;padding:4px 10px;border-radius:var(--r-8);
+  background:var(--c-due-bg);color:var(--c-due);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-semibold)}
+@media (forced-colors:active){ .ord-due-badge{border:1px solid CanvasText} }
+
+/* empty state */
+.ord-empty{display:flex;flex-direction:column;align-items:center;text-align:center;margin-top:72px;padding:0 16px}
+.ord-empty__ico{display:grid;place-items:center;width:72px;height:72px;border-radius:50%;background:var(--c-primary-tint);color:var(--c-primary)}
+.ord-empty__ico .ico{width:36px;height:36px}
+.ord-empty__t{margin-top:16px;color:var(--c-text-secondary)}
+.ord-empty__btn{margin-top:24px}
+
+/* ---------- detail ---------- */
+.ord-secs{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+.ord-sec{padding:20px 19px}
+.ord-sec__h{margin-bottom:16px;line-height:24px;color:var(--c-text)}
+
+/* remaining deferred amounts */
+.ord-parts{display:flex;flex-direction:column}
+.ord-part{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text)}
+.ord-part + .ord-part{margin-top:12px;padding-top:12px;border-top:1px solid var(--c-gray-150)}
+.ord-part__l{display:inline-flex;align-items:center;gap:2px;min-width:0}
+.ord-part__v{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-end;gap:2px 8px;margin-left:auto;text-align:right}
+.ord-part__est,.ord-part__arrow{color:var(--c-text-secondary)}
+.ord-part__act,.ord-part__amt{font-weight:var(--fw-semibold);color:var(--c-text)}
+.ord-part.is-paid .ord-part__amt{font-weight:var(--fw-regular);color:var(--c-text-secondary)}
+.ord-part__note{flex-basis:100%;font-size:var(--fs-note);line-height:var(--lh-note);color:var(--c-text-secondary)}
+.ord-part__note--refund{color:var(--c-done)}
+.ord-part__note--due{color:var(--c-due)}
+.ord-part__paid{display:inline-flex;align-items:center;gap:4px;color:var(--c-done);font-weight:var(--fw-semibold)}
+.ord-part__ok{width:16px;height:16px}
+/* a paid row: the inline-flex "✓ გადახდილია" takes its baseline from the 16 px icon, which pushed the amount 3 px
+   below the text on a baseline line — centre the two instead (both 14/20, so their text tops match) (op-r3-02) */
+.ord-part.is-paid .ord-part__v{align-items:center}
+.ord-due__total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--c-border);
+  font-size:var(--fs-body-16);line-height:24px;font-weight:var(--fw-semibold);color:var(--c-text)}
+.ord-due__sum{font-size:24px;line-height:32px;white-space:nowrap}
+.ord-due__btn{margin-top:16px}
+
+/* products */
+.ord-prods{display:flex;flex-direction:column;gap:18px}
+.ord-prod{display:grid;grid-template-columns:56px minmax(0,1fr) auto auto;column-gap:12px;align-items:center}
+.ord-prod .thumb{width:56px;height:56px}
+.ord-prod .badge{width:24px;height:24px;left:-10px;bottom:-8px;font-size:var(--fs-note);line-height:12px}
+.ord-prod__info{display:flex;flex-direction:column;min-width:0}
+.ord-prod__name{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--c-text)}
+/* notes / quantity: #666 (5.7:1) — the receipt's light #9e9e9e is 2.7:1 (REV2-03) */
+.ord-prod__note{font-size:var(--fs-note);line-height:var(--lh-note);color:var(--c-text-secondary)}
+.ord-prod__qty{font-size:var(--fs-body-16);line-height:var(--lh-body-16);color:var(--c-text-secondary)}
+.ord-prod__price{font-size:var(--fs-body-16);line-height:var(--lh-body-16);font-weight:var(--fw-bold);color:var(--c-text-value);white-space:nowrap;text-align:right}
+
+/* delivery */
+.ord-del__main{font-size:var(--fs-body-16);line-height:22px;font-weight:var(--fw-semibold);color:var(--c-text);overflow-wrap:anywhere}
+.ord-del__sub{margin-top:2px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text-secondary);overflow-wrap:anywhere}
+.ord-kv{margin:12px 0 0;font-size:var(--fs-body);line-height:22px}
+.ord-kv__row{display:flex;flex-wrap:wrap;column-gap:6px}
+.ord-kv dt{color:var(--c-text-secondary)}
+.ord-kv dd{margin:0;color:var(--c-text);overflow-wrap:anywhere}
+.ord-kv__pid{font-family:var(--font-latin);letter-spacing:.5px}
+
+/* payment + schedule */
+.ord-pay__method{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text)}
+.ord-pay__method + .ord-kv{margin-top:8px}
+.ord-sched{list-style:none;margin:14px 0 0;padding:0;border-top:1px solid var(--c-border)}
+.ord-sched__row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--c-gray-150);font-size:var(--fs-body);line-height:var(--lh-body)}
+.ord-sched__row:last-child{border-bottom:0;padding-bottom:0}
+.ord-sched__l{min-width:0;color:var(--c-text)}
+.ord-sched__sep,.ord-sched__d{color:var(--c-text-secondary)}
+.ord-sched__a{flex:none;font-weight:var(--fw-semibold);color:var(--c-text-strong)}
+
+/* phones: label line, then the amounts (keeps both rows alike when one would wrap) */
+@media (max-width:899.98px){
+  .ord-part{flex-direction:column;align-items:stretch;gap:2px}
+  .ord-part__v{justify-content:flex-start;margin-left:0;text-align:left}
+  /* product names: the column is ~80–210 px here, so one ellipsed line cut even short names ('Apple AirPods Pr…');
+     wrap to at most 2 lines like the list card shows them (the title attribute keeps the full name) (op-r3-04) */
+  .ord-prod__name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
+
+  /* toast: the generic phone spot (bottom 106) sat on the 'დარჩენილი გადასახდელი' amounts — the reason the user came
+     here after signing in or paying — and caught taps on their info buttons. As on the cart and delivery it goes to
+     the top and lets taps through (auth-v2r3-01). List: over the heading (12–56). Detail: under the heading row, over
+     the date line (72–116, above the timeline's first step at 127), so the status pill that a payment changes stays
+     visible. At 320–374 a long pill wraps under the title (70–94): orders.js measures the heading row and sets
+     --ord-toast-top (row bottom + 10, = 72 when the pill fits), so the toast lands on the date line under it (v3).
+     A browser without :has keeps the list placement */
+  body[data-screen="orders"] #toast-root{bottom:auto;top:12px}
+  body[data-screen="orders"]:has(.ord-page--detail) #toast-root{top:var(--ord-toast-top,72px)}
+  body[data-screen="orders"] .toast{transform:translateY(-8px);pointer-events:none}
+}
+
+/* ---------- narrow phones ---------- */
+@media (max-width:399.98px){
+  /* list bar: the shared equal columns wrapped 'ᲐᲮᲐᲚᲘ ᲨᲔᲙᲕᲔᲗᲐ' to 2 lines at 320 — the primary gets its 180 px first
+     and the short 'ᲣᲙᲐᲜ' takes the rest, as on auth / delivery (op-r3-03). The detail's single 'ᲣᲙᲐᲜ' bar keeps its column */
+  .ord-page:not(.ord-page--detail) .m-bar{grid-template-columns:minmax(0,1fr) minmax(0,180px)}
+  .ord-sched__l{display:flex;flex-direction:column}
+  .ord-sched__sep{display:none}
+  .ord-sched__d{font-size:var(--fs-note);line-height:var(--lh-note)}
+  /* the whole card is the link: drop the chevron column so the info lines keep their width */
+  .ord-card{padding-right:14px}
+  .ord-card__body{grid-template-columns:65px minmax(0,1fr);column-gap:12px}
+  .ord-card__chev{display:none}
+  .ord-card__sum{font-size:var(--fs-body)}
+  .ord-due-badge{white-space:nowrap}
+}
+@media (max-width:359.98px){
+  .ord{padding-inline:12px}
+  .ord-sec{padding-inline:14px}
+  .ord-card__body{grid-template-columns:56px minmax(0,1fr)}
+  .ord-card .thumb{width:56px;height:56px}
+  .ord-card .badge{width:24px;height:24px;left:-12px;top:42px;font-size:var(--fs-note);line-height:12px}
+  .ord-prod{grid-template-columns:48px minmax(0,1fr) auto auto;column-gap:10px}
+  .ord-prod .thumb{width:48px;height:48px}
+  /* a cross-month ETA ('28 სექტემბერი – 3 ოქტომბერი') is wider than the info column: let it break after the dash */
+  .ord-card__eta .eta-line__v{display:inline-block;white-space:normal}
+}
+
+/* list card header: once the card is too narrow for "#id · longest date" (210px, '28 სექტემბერი 2026') + 12 +
+   the longest pill (130px, 'მზადაა გასატანად'), every card gets the same two-line header: "#id" with the pill
+   top-right, the date under them at full width. Content box < 354px = phones below ~420px (428: 363px).
+   The pill overlaps the heading via a shared grid cell, NOT absolute positioning: .ord-card__top must stay
+   unpositioned so .ord-card__link::after (inset:0) keeps resolving against .ord-card and covers the whole card. */
+@container ordcard (max-width:353.98px){
+  .ord-card__top{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px}
+  .ord-card__h{grid-column:1/-1;grid-row:1}
+  .ord-card__top .status-pill{grid-column:2;grid-row:1;align-self:start}
+  .ord-card__date{display:block}
+  .ord-card__date>[aria-hidden="true"]{display:none}
+}
+
+/* ---------- desktop ---------- */
+@media (min-width:900px){
+  .ord-page{max-width:none;display:block;min-height:0;padding-bottom:80px}
+  .ord{width:min(645px,calc(100% - 80px));margin:73px auto 0;padding:0}
+  .ord-top{padding:0}
+  .ord-list{gap:20px}
+  .ord-card{padding:16px 24px 18px 16px}
+  .ord-card__body{grid-template-columns:73px minmax(0,1fr) 24px;column-gap:19px}
+  .ord-card .thumb{width:73px;height:73px}
+  .ord-card .badge{width:30px;height:30px;left:-15px;top:auto;bottom:-14px}
+  .ord-empty{margin-top:24px;padding:48px 24px 40px;background:var(--c-white);border:1px solid var(--c-border);border-radius:var(--r-8)}
+  .ord-empty__btn{width:var(--d-form-w);max-width:100%}
+  .ord-secs{gap:20px}
+  .ord-sec{padding:24px}
+  .ord-due__btn{margin-top:20px}
+}

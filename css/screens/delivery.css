@@ -1,0 +1,105 @@
+/* =====================================================================
+   Delivery  #/delivery — FEATURES_SPEC §2+3+6 (no Figma frame: built in the
+   DESIGN_SYSTEM language). One DOM:
+   - mobile: white page like auth (§4.3: heading line box 34–62, content at 106,
+     form insets 32 / 35, spacer ≥ 32), bottom bar ᲣᲙᲐᲜ + ᲒᲐᲒᲠᲫᲔᲚᲔᲑᲐ sticky as on cart / payment;
+   - desktop: #f4f4f4, standard header, heading as auth (bl 202), a centred
+     645 px column (cart / payment left column) of white section cards 20 apart,
+     method cards side by side, ETA box and the full-width button below.
+   ===================================================================== */
+.dlv{flex:1 1 auto;display:flex;flex-direction:column}
+.dlv__form{flex:1 1 auto;display:flex;flex-direction:column}
+.dlv__h{padding:34px 16px 0;text-align:center;color:var(--c-text)}
+.dlv__h:focus{outline:none}
+.dlv__body{padding:0 35px 0 32px;margin-top:44px}
+
+/* sections: a 16/20 semibold label (same role and tokens as the payment "განვადების ვადა" .terms__label), content 16 below */
+.dlv__sec + .dlv__sec{margin-top:32px}
+.dlv__sec-h{font-size:var(--fs-body-16);line-height:var(--lh-body-16);font-weight:var(--fw-semibold);color:var(--c-text)}
+.dlv__names{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;margin-top:16px}   /* 16: room for the floated labels */
+.dlv__names + .dlv__f{margin-top:16px}
+/* orange note under the personal ID, placed like the register phone note (.auth__note, DESIGN_SYSTEM §4.3:
+   15 px under the field, baseline at field bottom + 28); it turns into the field's error in place (no shift) */
+.dlv__note{margin-top:15px;color:var(--c-warn-text)}
+.dlv__note.is-error{color:var(--c-danger)}
+/* submit focuses the first invalid field, often above the viewport on phones: land it below its section
+   heading (20) + gap (16) + floated label (8) so the label, the 3 px ring and "მიმღები" stay visible */
+.dlv__form .field__input{scroll-margin-top:44px;scroll-margin-bottom:24px}
+
+/* method cards (UI.radioCards, payment-card language: Mtavruli 16 px regular title, its 19 px line centred
+   on the 24 px radio) + the chosen method's fields */
+.dlv .rcard__title{font-weight:var(--fw-regular);line-height:19px;padding-top:2.5px}
+/* the visually hidden radio covers its whole card (invisible, clicks still go to the card label), so a keyboard
+   focus scrolls the full card + its 3 px ring into view, never half under the sticky bar on phones */
+.dlv .rcard > input.sr-only{inset:0;width:auto;height:auto;margin:0;clip:auto;clip-path:none;opacity:0;pointer-events:none;scroll-margin-block:8px}
+.dlv__methods{margin-top:16px}
+.dlv__panel{margin-top:16px;container-type:inline-size}
+.dlv__f--addr,.dlv__f--note{margin-top:16px}
+/* the closed select cuts long branch labels on phones: the chosen branch's address is repeated below.
+   From a 470 px panel the select shows the longest label (407 px) in full, so the line would only repeat it. */
+.dlv__branch-addr{margin-top:6px;padding:0 16px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--c-text-secondary)}
+.dlv__branch-addr:empty{display:none}
+@container (min-width:470px){ .dlv__branch-addr{display:none} }
+/* the address field shows its own hint ("ქუჩა, სახლის ნომერი"), so its label stays floated on the border */
+.dlv__f--addr .field__label{width:auto;height:auto;margin:0;padding:0 4px;overflow:visible;clip-path:none;max-width:calc(100% - 22px);text-overflow:ellipsis}
+.dlv__f--addr .field__input:focus + .field__label{color:var(--c-primary)}
+.dlv__f--addr .field__input[aria-invalid="true"] + .field__label{color:var(--c-danger-strong)}
+
+.dlv__eta{margin-top:24px}
+/* (.eta-box__note text-wrap:pretty now lives in base.css for every ETA box) */
+.dlv__spacer{flex:1 1 auto;min-height:32px}
+.dlv__bar .btn{width:100%}
+
+/* stacked cards (< 900): each method's fields follow its own card (pickup card, branch, courier card,
+   courier fields, ETA) instead of sitting under both cards. The fieldset becomes display:contents so its
+   cards join the section's flex column; DOM / focus order is unchanged (radio → its panel).
+   Heading → first card and card → its panel are 16, as heading → names and field → field: room for the
+   floated select labels (DLV-R3-01); card → card stays 12. */
+@media (max-width:899.98px){
+  .dlv__sec--method{display:flex;flex-direction:column}
+  .dlv__sec--method .dlv__methods{display:contents}
+  .dlv__methods > .rcard[data-value="pickup"]{order:1;margin-top:16px}
+  .dlv__sec--method #dlv-pickup{order:2;margin-top:16px}
+  .dlv__methods > .rcard[data-value="courier"]{order:3;margin-top:12px}
+  .dlv__sec--method #dlv-courier{order:4;margin-top:16px}
+  .dlv__sec--method .dlv__eta{order:5}
+  /* the shared sticky bar (base.css .m-bar--sticky) on this white page: white box and fade */
+  .dlv__bar.m-bar--sticky{background:var(--c-white)}
+  .dlv__bar.m-bar--sticky::before{background:linear-gradient(rgba(255,255,255,0),var(--c-white))}
+}
+
+/* < 360: base.css narrows .m-bar to 16 px gutters — keep the form column on the same edges */
+@media (max-width:359.98px){
+  .dlv__body{padding:0 16px}
+  /* the orange ID note wraps to two lines inside the column (it no longer pokes past the field edge);
+     the 2-line box is kept when it turns into the one-line error, so nothing below shifts */
+  .dlv__note{margin-right:0;min-height:32px}
+  .dlv__names{column-gap:12px}
+  .dlv .rcard{padding:15px 12px;column-gap:10px}
+}
+/* 360–364: the 298 px note still wraps in the 293–297 px column (35 + 32 insets): keep the same 2-line box */
+@media (min-width:360px) and (max-width:364.98px){ .dlv__note{min-height:32px} }
+/* < 400: as on auth, the primary button keeps its 180 px and the short "ᲣᲙᲐᲜ" takes what is left */
+@media (max-width:399.98px){
+  .dlv__bar{grid-template-columns:minmax(0,1fr) minmax(0,180px)}
+}
+
+/* ---------- desktop ---------- */
+@media (min-width:900px){
+  .dlv-page{max-width:none;padding-bottom:80px;display:block;min-height:0}
+  .dlv{display:block}
+  .dlv__form{display:block;width:min(645px,calc(100% - 80px));margin:0 auto}
+  .dlv__h{padding:0;margin-top:43px}
+  .dlv__body{padding:0}
+  .dlv__sec{background:var(--c-white);border:1px solid var(--c-border);border-radius:var(--r-8);padding:23px 24px 24px}
+  .dlv__sec + .dlv__sec{margin-top:20px}
+  .dlv__names{column-gap:20px}
+  .dlv__methods{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:16px}
+  .dlv__panel{margin-top:20px}
+  .dlv__addr-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);column-gap:20px;align-items:start}
+  .dlv__f--addr{margin-top:0}
+  .dlv__f--note{margin-top:20px}
+  .dlv__eta{margin-top:20px}
+  .dlv__spacer{display:none}
+  .dlv__bar{display:block;height:auto;padding:0;margin-top:30px}
+}

@@ -4,6 +4,10 @@
    the past, CVV 3 (Amex 4), ~1.2 s processing, then #/success.
    QA: ?demo=1  &err=1 (validation errors)  &processing=1 (frozen spinner)
    Test card: 4242 4242 4242 4242 · any future date · any 3 digits
+   v2 order mode #/pay?order=<id> (FEATURES_SPEC §4): pays the remaining
+   deferred amounts of a stored order — "გადასახდელი: 350₾" line above
+   "Pay with", back → #/orders/<id>, success → payDeferred + toast →
+   #/orders/<id>.  QA: #/pay?demo=1&order=731954
    ===================================================================== */
 (function () {
   'use strict';
@@ -28,13 +32,25 @@
     return d.slice(0, 4);
   }
 
-  function render() {
+  /** the stored order paid in order mode (#/pay?order=<id>), else null (checkout) */
+  function orderOf(ctx) { return ctx && ctx.query && ctx.query.order ? SP.orders.get(ctx.query.order) : null; }
+
+  function render(ctx) {
+    var o = orderOf(ctx);
+    var back = o ? '/orders/' + o.id : '/payment';
+    var due = o ? SP.orderDue(o).total : 0;
     return '' +
       '<div class="m-page paypage">' +
-        UI.dHead('/payment') +
+        UI.dHead(back) +
         '<main class="paycard-wrap">' +
-          '<h1 class="sr-only">ბარათით გადახდა</h1>' +
-          '<form class="paycard" id="card-form" novalidate>' +
+          // order mode: the amount is said where focus lands (the h1 the router focuses, the named form and
+          // the pay button), not only in the form's description (REV2R3-06)
+          '<h1 class="sr-only" id="pay-h">ბარათით გადახდა' + (o ? ': შეკვეთა #' + SP.esc(o.id) + ', გადასახდელი ' + F.money(due) : '') + '</h1>' +
+          '<form class="paycard" id="card-form" novalidate' + (o ? ' aria-labelledby="pay-h" aria-describedby="pay-due"' : '') + '>' +
+            (o ? '<div class="paycard__due" id="pay-due">' +
+                   '<p class="paycard__due-amt">გადასახდელი: <span class="paycard__due-v">' + F.money(due) + '</span></p>' +
+                   '<p class="paycard__due-ref">შეკვეთა #' + SP.esc(o.id) + '</p>' +
+                 '</div>' : '') +
             '<p class="t-card-label paycard__label" id="brands-l" lang="en">Pay with</p>' +
             '<ul class="brands" aria-labelledby="brands-l">' +
               BRANDS.map(function (b) { return '<li class="brands__item" data-brand="' + b.id + '"><img src="assets/icons/card-' + b.id + '.svg" width="28.5" height="19" alt="' + b.name + '"></li>'; }).join('') +
@@ -55,16 +71,17 @@
                 '<p class="err" id="cc-cvv-err" aria-live="polite"></p>' +
               '</div>' +
             '</div>' +
-            '<button type="submit" class="btn btn--card" id="card-submit"><span class="btn__label">' + UI.mt('pay') + '</span></button>' +
+            '<button type="submit" class="btn btn--card" id="card-submit"' + (o ? ' aria-describedby="pay-due"' : '') + '><span class="btn__label">' + UI.mt('pay') + '</span></button>' +
             '<p class="sr-only" id="card-status" aria-live="assertive"></p>' +
           '</form>' +
         '</main>' +
         '<div class="m-spacer paypage__spacer only-m"></div>' +
-        '<div class="only-m">' + UI.mBar({ label: UI.mt('back'), back: '/payment' }, null) + '</div>' +
+        '<div class="only-m">' + UI.mBar({ label: UI.mt('back'), back: back }, null) + '</div>' +
       '</div>';
   }
 
   function mount(root, ctx) {
+    var ord = orderOf(ctx), orderId = ord ? ord.id : null;
     var form = root.querySelector('#card-form');
     var num = root.querySelector('#cc-num'), exp = root.querySelector('#cc-exp'), cvv = root.querySelector('#cc-cvv');
     var btn = root.querySelector('#card-submit');
@@ -138,13 +155,20 @@
       root.querySelector('#card-status').textContent = 'მიმდინარეობს გადახდა…';
       if (frozen) return;
       timer = setTimeout(function () {
-        SP.createOrder();
-        // the order snapshot is what #/success renders; empty the cart so Back
-        // from success cannot offer the paid products for payment again
-        // …and reset the per-order choices to the brief's defaults, so a new
-        // order started after Back from success does not inherit them (the
-        // receipt reads deferWeight / deferCustoms / method from the snapshot)
-        SP.set({ products: [], deferWeight: true, deferCustoms: true, method: 'bog', ui: { details: {}, payDetails: false } });
+        timer = null;
+        if (orderId) {
+          // order mode: mark the due deferred amounts paid (a customs-blocked order moves on), back to its detail
+          SP.payDeferred(orderId);
+          UI.toast(SP.toastMsg.paid);
+          // opened from the detail: step back to that entry instead of stacking a duplicate (REV2-04); a
+          // deep-linked pay entry is replaced. The router decides which (REV2R3-07: no history internals
+          // here). Forward to the paid #/pay?order= is guarded.
+          SP.back('/orders/' + orderId, { replace: true });
+          return;
+        }
+        // checkout: stores the order (the success snapshot), then empties the cart and resets the per-order
+        // choices (defers, method, term, delivery.done), so Back from success cannot pay the same cart again
+        SP.completeCheckout();
         SP.go('/success', { replace: true });
       }, 1200);
     }
@@ -163,5 +187,5 @@
     if (ctx.entry && ctx.query.processing === '1') process(true);
   }
 
-  SP.route('/pay', { screen: 'pay', title: 'ბარათით გადახდა', render: render, mount: mount, unmount: function () { clearTimeout(timer); } });
+  SP.route('/pay', { screen: 'pay', title: 'ბარათით გადახდა', render: render, mount: mount, unmount: function () { clearTimeout(timer); timer = null; } });
 })();
