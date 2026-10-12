@@ -126,8 +126,7 @@ npm run test:visual  # მხოლოდ დიზაინთან შედ�
 
 - დიზაინთან შედარებას (ის `npm test`-შიც შედის) სჭირდება python3 და Pillow: `pip3 install pillow`. მათ გარეშე
   გაუშვით `npm test -- --no-visual`.
-
-- ფილტრი: `npm test -- orders delivery`; შედარების გარეშე: `npm test -- --no-visual`.
+- ფილტრი: `npm test -- orders delivery`.
 - სხვა ასლის შესამოწმებლად: `APP_DIR=/path/to/copy npm test`. ფარდობითი `APP_DIR` / `TEST_OUT` გაიხსნება იმ
   საქაღალდიდან, საიდანაც runner ეშვება (`npm test`-ის დროს ეს პროექტის ფესვია); უსაფრთხოა აბსოლუტური გზა.
 - შედეგები (სქრინშოტები, ლოგები, `summary.json`) იწერება `tests/out/`-ში (git-ში არ შედის).
